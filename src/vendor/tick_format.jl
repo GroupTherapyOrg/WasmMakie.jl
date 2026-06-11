@@ -48,9 +48,9 @@ function _scientific_label_precision(xs)
     return _plain_label_precision(ys)
 end
 
-# WTGAP(pending): both const-global String references and String*SubString
-# concatenation trap in wasm — build the minus-prefixed string from bytes
-# (the proven overlay materialization pattern).
+# WTGAP(eeb022548784, 284d3e7059cd): both const-global String references and
+# String*SubString concatenation trap in wasm — build the minus-prefixed
+# string from bytes (the proven overlay materialization pattern).
 function _prepend_minus(rest_from::AbstractString, skip_first::Bool)
     out = UInt8[0xe2, 0x88, 0x92]  # U+2212 MINUS_SIGN
     cu = codeunits(rest_from)
@@ -64,16 +64,16 @@ end
 
 _replace_leading_hyphen(s::AbstractString) = startswith(s, '-') ? _prepend_minus(s, true) : String(s)
 
-# WTGAP(pending): explicit kwarg-forwarding calls to this function trap in
-# wasm (defaulted calls are fine) — positional signature instead.
+# WTGAP(dd8864a83097): explicit kwarg-forwarding calls to this function trap
+# in wasm (defaulted calls are fine) — positional signature instead.
 function _format_plain_label(x::AbstractFloat, precision::Integer, minus_sign::Bool = true)
     s = Base.Ryu.writefixed(x, precision)
     return minus_sign ? _replace_leading_hyphen(s) : s
 end
 
 "Format `xs` as plain decimal strings with a uniform precision (Makie parity)."
-# WTGAP(pending): comprehensions whose kernel returns Strings misexecute in
-# wasm (the map-kernel deep gap) — explicit loops throughout this file.
+# WTGAP(5663ffe988fc): comprehensions whose kernel returns Strings misexecute
+# in wasm (the map-kernel deep gap) — explicit loops throughout this file.
 function format_ticks_plain(xs::AbstractArray{<:AbstractFloat}; minus_sign::Bool = true)
     precision = _plain_label_precision(xs)
     out = String[]

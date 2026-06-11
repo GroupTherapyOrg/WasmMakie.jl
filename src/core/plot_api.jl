@@ -70,17 +70,41 @@ function heatmap!(ax::Axis, xs::AbstractVector{<:Real}, ys::AbstractVector{<:Rea
     length(eys) == ny && (eys = _centers_to_edges(eys))
     length(exs) == nx + 1 || error("heatmap: xs must have length $(nx) (centers) or $(nx + 1) (edges)")
     length(eys) == ny + 1 || error("heatmap: ys must have length $(ny) (centers) or $(ny + 1) (edges)")
-    vals = Matrix{Float64}(undef, nx, ny)
+    vals = Vector{Float64}(undef, nx * ny)
     for j in 1:ny, i in 1:nx
-        vals[i, j] = Float64(values[i, j])
+        vals[i + (j - 1) * nx] = Float64(values[i, j])
     end
-    push!(ax.heatmaps, HeatmapPlot(exs, eys, vals, Float64(colorrange[1]), Float64(colorrange[2])))
+    push!(ax.heatmaps, HeatmapPlot(exs, eys, vals, Int64(nx), Int64(ny),
+                                   Float64(colorrange[1]), Float64(colorrange[2])))
     _push_plot!(ax, PLOT_HEATMAP, Int64(length(ax.heatmaps)))
     return ax.heatmaps[end]
 end
 
 heatmap!(ax::Axis, values::AbstractMatrix{<:Real}; kwargs...) =
     heatmap!(ax, 1:size(values, 1), 1:size(values, 2), values; kwargs...)
+
+# WTGAP(3aaa51b9a688): Matrix construction is unavailable inside wasm-compiled
+# figure kernels — flat column-major Vector overload for those callers. Same
+# drawing semantics as the Matrix method (which remains the host-facing API).
+function heatmap!(ax::Axis, xs::AbstractVector{<:Real}, ys::AbstractVector{<:Real},
+                  values::AbstractVector{<:Real}, nx::Int64, ny::Int64;
+                  colorrange::Tuple{Real,Real} = (NaN, NaN))
+    length(values) == nx * ny || error("heatmap: flat values must have length nx*ny")
+    exs = _f64vec(xs)
+    eys = _f64vec(ys)
+    length(exs) == nx && (exs = _centers_to_edges(exs))
+    length(eys) == ny && (eys = _centers_to_edges(eys))
+    length(exs) == nx + 1 || error("heatmap: xs must have length $(nx) (centers) or $(nx + 1) (edges)")
+    length(eys) == ny + 1 || error("heatmap: ys must have length $(ny) (centers) or $(ny + 1) (edges)")
+    vals = Vector{Float64}(undef, nx * ny)
+    for k in 1:(nx * ny)
+        vals[k] = Float64(values[k])
+    end
+    push!(ax.heatmaps, HeatmapPlot(exs, eys, vals, nx, ny,
+                                   Float64(colorrange[1]), Float64(colorrange[2])))
+    _push_plot!(ax, PLOT_HEATMAP, Int64(length(ax.heatmaps)))
+    return ax.heatmaps[end]
+end
 
 # Makie's heatmap center→edge expansion (midpoints, extrapolated ends)
 function _centers_to_edges(cs::Vector{Float64})
@@ -111,6 +135,23 @@ function image!(ax::Axis, xspan::Tuple{Real,Real}, yspan::Tuple{Real,Real},
     push!(ax.images, ImagePlot(Float64(xspan[1]), Float64(xspan[2]),
                                Float64(yspan[1]), Float64(yspan[2]),
                                flat, Int64(ni), Int64(nj), interpolate))
+    _push_plot!(ax, PLOT_IMAGE, Int64(length(ax.images)))
+    return ax.images[end]
+end
+
+# WTGAP(a9bf645b1003): Matrix{NTuple{4,Float64}} literals trap in wasm —
+# flat column-major Vector overload for wasm-compiled figure kernels.
+function image!(ax::Axis, xspan::Tuple{Real,Real}, yspan::Tuple{Real,Real},
+                pixels::AbstractVector{NTuple{4,Float64}}, ni::Int64, nj::Int64;
+                interpolate::Bool = true)
+    length(pixels) == ni * nj || error("image: flat pixels must have length ni*nj")
+    flat = Vector{NTuple{4,Float64}}(undef, ni * nj)
+    for k in 1:(ni * nj)
+        flat[k] = pixels[k]
+    end
+    push!(ax.images, ImagePlot(Float64(xspan[1]), Float64(xspan[2]),
+                               Float64(yspan[1]), Float64(yspan[2]),
+                               flat, ni, nj, interpolate))
     _push_plot!(ax, PLOT_IMAGE, Int64(length(ax.images)))
     return ax.images[end]
 end

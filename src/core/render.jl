@@ -176,12 +176,13 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
             end
         elseif kind == PLOT_HEATMAP
             p = ax.heatmaps[idx]
-            nx, ny = size(p.values)
+            nx = p.nx
+            ny = p.ny
             lo = isnan(p.colorrange_min) ? minimum(p.values) : p.colorrange_min
             hi = isnan(p.colorrange_max) ? maximum(p.values) : p.colorrange_max
             pixels = Vector{NTuple{4,Float64}}(undef, nx * ny)
-            for j in 1:ny, i in 1:nx
-                pixels[i + (j - 1) * nx] = interpolated_getindex(VIRIDIS, p.values[i, j], lo, hi)
+            for k in 1:(nx * ny)
+                pixels[k] = interpolated_getindex(VIRIDIS, p.values[k], lo, hi)
             end
             x0 = px_x(t, p.xs[1]); x1 = px_x(t, p.xs[end])
             y0p = px_y(t, p.ys[1]); y1p = px_y(t, p.ys[end])

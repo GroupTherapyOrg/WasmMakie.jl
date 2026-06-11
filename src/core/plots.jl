@@ -48,10 +48,14 @@ mutable struct BarPlotData
     strokewidth::Float64
 end
 
+# WTGAP(3aaa51b9a688): Matrix{Float64} fails wasm validation (struct.new
+# ref-type mismatch) — values stored column-major flat, like ImagePlot.
 mutable struct HeatmapPlot
     xs::Vector{Float64}      # nx+1 edges
     ys::Vector{Float64}      # ny+1 edges
-    values::Matrix{Float64}
+    values::Vector{Float64}  # column-major flat (i + (j-1)*nx)
+    nx::Int64
+    ny::Int64
     colorrange_min::Float64  # NaN = automatic
     colorrange_max::Float64
 end

@@ -743,21 +743,65 @@ function w005_bar()
     barplot!(ax, [1.0, 2.0, 3.0], [2.0, -1.0, 3.0]; color = :orange)
     render!(fig, WasmCtx()); return Int64(0)
 end
+# WTGAP(3aaa51b9a688, a9bf645b1003): heatmap/image kernels use the flat-vector
+# overloads — Matrix construction fails wasm validation / traps.
+function w005_heatmap()
+    fig = Figure(size = (300.0, 200.0))
+    ax = Axis(fig[1, 1])
+    heatmap!(ax, [0.0, 1.0, 2.0, 3.0], [0.0, 1.0, 2.0],
+             [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], Int64(3), Int64(2))
+    render!(fig, WasmCtx()); return Int64(0)
+end
+function w005_image()
+    fig = Figure(size = (300.0, 200.0))
+    ax = Axis(fig[1, 1])
+    px = NTuple{4,Float64}[(1.0, 0.0, 0.0, 1.0), (0.0, 0.0, 1.0, 1.0),
+                           (0.0, 1.0, 0.0, 1.0), (1.0, 1.0, 0.0, 1.0)]
+    image!(ax, (0.0, 2.0), (0.0, 2.0), px, Int64(2), Int64(2); interpolate = false)
+    render!(fig, WasmCtx()); return Int64(0)
+end
+function w005_grid()
+    fig = Figure(size = (400.0, 300.0))
+    lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
+    scatter!(Axis(fig[1, 2]), [0.0, 1.0, 2.0], [0.9, 0.2, 0.6])
+    barplot!(Axis(fig[2, 1]), [1.0, 2.0, 3.0], [1.0, 2.0, 1.5])
+    heatmap!(Axis(fig[2, 2]), [0.0, 1.0, 2.0], [0.0, 1.0],
+             [1.0, 2.0], Int64(2), Int64(1))
+    render!(fig, WasmCtx()); return Int64(0)
+end
 
-@testset "per-plot-type wasm differentials (W-005: scatter, bar)" begin
+@testset "per-plot-type wasm differentials (W-005: scatter, bar, heatmap, image, grid)" begin
     norm(j) = strip(read(`node -e "console.log(JSON.stringify(JSON.parse(process.argv[1])))" $j`, String))
     checker = joinpath(@__DIR__, "wasm_stream_check.js")
     dir = mktempdir()
     glue_path = joinpath(dir, "glue.js"); write(glue_path, js_glue())
 
-    for (name, kernel, builder) in [
-            ("scatter", w005_scatter, ax -> begin
+    for (name, kernel, size, builder) in [
+            ("scatter", w005_scatter, (300.0, 200.0), fig -> begin
+                ax = Axis(fig[1, 1])
                 scatter!(ax, [0.0, 1.0, 2.0], [0.5, 1.5, 1.0]; markersize = 14.0, color = :red)
                 scatter!(ax, [0.5, 1.5], [1.2, 0.8]; marker = :rect, markersize = 10.0)
             end),
-            ("bar", w005_bar, ax -> barplot!(ax, [1.0, 2.0, 3.0], [2.0, -1.0, 3.0]; color = :orange))]
-        fig = Figure(size = (300.0, 200.0))
-        builder(Axis(fig[1, 1]))
+            ("bar", w005_bar, (300.0, 200.0),
+             fig -> barplot!(Axis(fig[1, 1]), [1.0, 2.0, 3.0], [2.0, -1.0, 3.0]; color = :orange)),
+            ("heatmap", w005_heatmap, (300.0, 200.0),
+             fig -> heatmap!(Axis(fig[1, 1]), [0.0, 1.0, 2.0, 3.0], [0.0, 1.0, 2.0],
+                             [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], Int64(3), Int64(2))),
+            ("image", w005_image, (300.0, 200.0), fig -> begin
+                px = NTuple{4,Float64}[(1.0, 0.0, 0.0, 1.0), (0.0, 0.0, 1.0, 1.0),
+                                       (0.0, 1.0, 0.0, 1.0), (1.0, 1.0, 0.0, 1.0)]
+                image!(Axis(fig[1, 1]), (0.0, 2.0), (0.0, 2.0), px, Int64(2), Int64(2);
+                       interpolate = false)
+            end),
+            ("grid", w005_grid, (400.0, 300.0), fig -> begin
+                lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
+                scatter!(Axis(fig[1, 2]), [0.0, 1.0, 2.0], [0.9, 0.2, 0.6])
+                barplot!(Axis(fig[2, 1]), [1.0, 2.0, 3.0], [1.0, 2.0, 1.5])
+                heatmap!(Axis(fig[2, 2]), [0.0, 1.0, 2.0], [0.0, 1.0],
+                         [1.0, 2.0], Int64(2), Int64(1))
+            end)]
+        fig = Figure(size = size)
+        builder(fig)
         r = RecordingCtx(); render!(fig, r)
         bytes = compile_with_canvas(Any[(kernel, (), "k")])
         wp = joinpath(dir, name * ".wasm"); write(wp, bytes)
