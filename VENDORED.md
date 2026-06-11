@@ -30,4 +30,4 @@ Required header in every vendored/translated file:
 
 | file here | source | kind |
 |---|---|---|
-| _(none yet — populated as stories land)_ | | |
+| `reftests/scorer.jl` | Makie.jl master `ReferenceTests/src/compare_media.jl` (compare_images verbatim; loading/dir-scoring adapted — stills only, PNGFiles) | tooling |

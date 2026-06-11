@@ -184,6 +184,61 @@ end
 include(joinpath(dirname(@__DIR__), "reftests", "harness.jl"))
 using .Harness
 
+include(joinpath(dirname(@__DIR__), "reftests", "scorer.jl"))
+using .RefScorer
+using ColorTypes, FixedPointNumbers
+import PNGFiles
+
+@testset "reference scorer (F-006)" begin
+    white(h, w) = fill(RGBA{N0f8}(1, 1, 1, 1), h, w)
+
+    # identical → 0
+    @test compare_images(white(60, 60), white(60, 60)) == 0.0
+
+    # size mismatch → Inf
+    @test compare_images(white(60, 60), white(60, 90)) == Inf
+
+    # upstream tiling: ceil(N/30) BOUNDARIES, so 60×60 = one 60×60 tile.
+    # A black 30×30 quadrant in white → tile mean = √3·(900/3600) = √3/4
+    b = white(60, 60)
+    b[1:30, 1:30] .= RGBA{N0f8}(0, 0, 0, 1)
+    @test compare_images(white(60, 60), b) ≈ sqrt(3) / 4 atol = 1e-3
+
+    # localized (max-tile) sensitivity: 90×90 → boundaries [0,45,90] → four
+    # 45×45 tiles. ONE black pixel scores √3/2025 (its tile's mean), NOT the
+    # global mean √3/8100
+    c = white(90, 90)
+    c[5, 5] = RGBA{N0f8}(0, 0, 0, 1)
+    @test compare_images(white(90, 90), c) ≈ sqrt(3) / 2025 atol = 1e-7
+    @test compare_images(white(90, 90), c) > sqrt(3) / 8100
+
+    # file path round-trips through PNG encode/decode
+    dir = mktempdir()
+    PNGFiles.save(joinpath(dir, "a.png"), white(60, 60))
+    PNGFiles.save(joinpath(dir, "b.png"), b)
+    @test compare_media(joinpath(dir, "a.png"), joinpath(dir, "b.png")) ≈ sqrt(3) / 4 atol = 1e-3
+
+    # score_directory: 1 pass + 1 fail + 1 missing + 1 new → rate 0.5
+    rec = mktempdir(); ref = mktempdir()
+    PNGFiles.save(joinpath(rec, "same.png"), white(60, 60))
+    PNGFiles.save(joinpath(ref, "same.png"), white(60, 60))
+    PNGFiles.save(joinpath(rec, "diff.png"), white(60, 60))
+    PNGFiles.save(joinpath(ref, "diff.png"), b)
+    PNGFiles.save(joinpath(ref, "only_ref.png"), white(30, 30))
+    PNGFiles.save(joinpath(rec, "only_rec.png"), white(30, 30))
+    result = score_directory(rec, ref)
+    @test result.total == 2 && result.passed == 1 && result.rate == 0.5
+    @test result.scores["same.png"] == 0.0
+    @test result.scores["diff.png"] > 0.05
+    @test occursin("same.png", read(joinpath(rec, "scores.tsv"), String))
+    @test strip(read(joinpath(rec, "missing_files.txt"), String)) == "only_ref.png"
+    @test strip(read(joinpath(rec, "new_files.txt"), String)) == "only_rec.png"
+
+    # the pinned reference tarball is fetchable (HEAD only — no download)
+    code = strip(read(`curl -sIL -o /dev/null -w "%{http_code}" $(RefScorer.refimages_url())`, String))
+    @test code == "200"
+end
+
 @testset "headless render harness (F-005)" begin
     # red rect program → real Chromium pixels
     r = RecordingCtx()
