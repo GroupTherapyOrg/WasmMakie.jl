@@ -67,10 +67,19 @@ end
         png2 = take!(io2)
         @test png2[1:8] == UInt8[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
 
-        # unimplemented atomic plots are a LOUD error, never a blank render
-        # (scatter is not implemented until D-003)
-        scatter!(Axis(fig[1, 1]), [0.0, 1.0], [0.0, 1.0])
-        @test_throws Exception Makie.colorbuffer(fig)
+        # as of D-006 a complete Axis (spines, grids, tick labels = lines +
+        # text plots) renders end-to-end — the original D-001 expectation
+        # (loud error on unimplemented plots) is now exercised by meshscatter
+        ax = Axis(fig[1, 1])
+        scatter!(ax, [0.0, 1.0], [0.0, 1.0])
+        aximg = Makie.colorbuffer(fig)
+        @test size(aximg) == (60, 100)
+        @test any(px -> px != RGBA{N0f8}(1, 1, 1, 1), aximg)  # axis ink exists
+
+        # unimplemented atomic plots stay LOUD, never a blank render
+        fig2 = Figure(size = (100, 60))
+        meshscatter!(Axis(fig2[1, 1]), [0.0, 1.0], [0.0, 1.0])
+        @test_throws Exception Makie.colorbuffer(fig2)
     end
 end
 
@@ -360,5 +369,59 @@ end
         s8 = pxscene()
         band!(s8, [10.0, 90.0], [20.0, 20.0], [60.0, 60.0])
         @test_throws Exception shot(s8)
+    end
+end
+
+@testset "text via glyph outlines (D-006)" begin
+    if !HAVE_RENDERER
+        @test_skip "headless renderer unavailable"
+    else
+        pxscene() = Scene(size = (100, 100), backgroundcolor = :white, camera = campixel!)
+        shot(scene) = Makie.colorbuffer(CanvasMakie.Screen(scene))
+        function inkbbox(img; pred = px -> Float64(ColorTypes.red(px)) < 0.5 && Float64(ColorTypes.green(px)) < 0.5)
+            dark = [(r, c) for r in 1:size(img, 1), c in 1:size(img, 2) if pred(img[r, c])]
+            isempty(dark) && return nothing
+            return (extrema(first.(dark)), extrema(last.(dark)), length(dark))
+        end
+        # oracle ink bboxes measured from real CairoMakie 0.15.11 (glyphs there
+        # rasterize via Cairo+FreeType; ours are the same outlines as paths, so
+        # bounds should agree within antialiasing tolerance)
+        close2(got, want; tol = 3) =
+            abs(got[1] - want[1]) <= tol && abs(got[2] - want[2]) <= tol
+        function bbox_close(got, want; tol = 3, inktol = 0.3)
+            got === nothing && return false
+            return close2(got[1], want[1]; tol) && close2(got[2], want[2]; tol) &&
+                   abs(got[3] - want[3]) <= inktol * want[3]
+        end
+
+        mk(; kw...) = begin
+            s = pxscene()
+            text!(s, 50.0, 50.0; text = "Hi", fontsize = 40, color = :black, kw...)
+            shot(s)
+        end
+
+        @test bbox_close(inkbbox(mk()), ((13, 41), (54, 86), 360))
+        @test bbox_close(inkbbox(mk(align = (:center, :center))), ((36, 65), (35, 67), 361))
+        @test bbox_close(inkbbox(mk(rotation = pi / 2)), ((15, 47), (13, 41), 360))
+
+        # color: red text ink is pure red
+        sr = pxscene()
+        text!(sr, 50.0, 50.0; text = "H", fontsize = 40, color = :red,
+              align = (:center, :center))
+        imgr = shot(sr)
+        reds = inkbbox(imgr; pred = px -> Float64(ColorTypes.red(px)) > 0.9 &&
+                                          Float64(ColorTypes.green(px)) < 0.1)
+        @test reds !== nothing && reds[3] > 100
+
+        # the glyph-path cache fills and is reused across renders
+        n_cached = length(CanvasMakie._GLYPH_PATH_CACHE)
+        @test n_cached >= 3  # H, i (+ dotted i parts share glyphs per font)
+        shot(sr)
+        @test length(CanvasMakie._GLYPH_PATH_CACHE) == n_cached
+
+        # glow is a loud error when requested, never silently dropped
+        sg = pxscene()
+        text!(sg, 50.0, 50.0; text = "x", glowwidth = 5, glowcolor = :red)
+        @test_throws Exception shot(sg)
     end
 end

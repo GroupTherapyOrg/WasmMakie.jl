@@ -40,3 +40,4 @@ Required header in every vendored/translated file:
 | `src/draw/poly.jl` | CairoMakie v0.15.11 `src/overrides.jl` (draw_poly path building, polypath even-odd interiors) | draw layer |
 | `CanvasMakie/src/poly.jl` | CairoMakie v0.15.11 `src/overrides.jl` (draw_plot(Poly) hasmethod dispatch, draw_poly methods for points/lists/Rect2/Circle/Polygon) + `src/utils.jl` (cairo_viewport_matrix/build_combined_transformation_matrix verbatim) — clip planes, patterns, BezierPath shapes, mesh fallback deferred | adapter |
 | `CanvasMakie/src/screen.jl` (walk) | CairoMakie v0.15.11 `src/plot-primitives.jl` (cairo_draw walk, prepare_for_scene, check_parent_plots) — rasterize path dropped (image-only) | adapter |
+| `CanvasMakie/src/text.jl` | CairoMakie v0.15.11 `src/scatter.jl` draw_text (per-glyph extraction loop) — RENDERING diverges by design: FreeType outline decomposition → encoded paths instead of cairo_show_glyphs; batching dropped; glow loud | adapter |

@@ -10,14 +10,16 @@
 
 # Encoded path commands (closed-world BezierPath representation):
 # code 0 MoveTo(x,y) · 1 LineTo(x,y) · 2 CurveTo(c1x,c1y,c2x,c2y,x,y) ·
-# 3 ClosePath · 4 EllipticalArc(cx,cy,r1,r2,angle,a1,a2)
+# 3 ClosePath · 4 EllipticalArc(cx,cy,r1,r2,angle,a1,a2) ·
+# 5 QuadTo(cx,cy,x,y) — TrueType glyph outlines are conic
 const PATH_MOVE = Int64(0)
 const PATH_LINE = Int64(1)
 const PATH_CURVE = Int64(2)
 const PATH_CLOSE = Int64(3)
 const PATH_ARC = Int64(4)
+const PATH_QUAD = Int64(5)
 
-const _PATH_NCOORDS = (2, 2, 6, 0, 7)  # per code, index = code + 1
+const _PATH_NCOORDS = (2, 2, 6, 0, 7, 4)  # per code, index = code + 1
 
 # Translated from CairoMakie draw_path/path_command.
 function draw_path!(ctx, codes::Vector{Int64}, coords::Vector{Float64})
@@ -32,6 +34,8 @@ function draw_path!(ctx, codes::Vector{Int64}, coords::Vector{Float64})
                             coords[j + 3], coords[j + 4], coords[j + 5])
         elseif code == PATH_CLOSE
             close_path(ctx)
+        elseif code == PATH_QUAD
+            quadratic_curve_to(ctx, coords[j], coords[j + 1], coords[j + 2], coords[j + 3])
         elseif code == PATH_ARC
             cx = coords[j]; cy = coords[j + 1]
             r1 = coords[j + 2]; r2 = coords[j + 3]
