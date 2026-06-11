@@ -18,11 +18,35 @@ working plots, but none of them are referenced by this package.
 ```julia
 using WasmMakie
 
-fig = Figure()
-ax = Axis(fig[1, 1], title = "sine")
-lines!(ax, 0..10, sin)
-fig   # show(io, MIME"text/html", fig) → self-contained canvas + wasm fragment
+fig = Figure(size = (400, 300))
+ax = Axis(fig[1, 1]; title = "sine")
+lines!(ax, collect(0:0.1:10), sin)
+fig   # show(io, MIME"text/html", fig) → SELF-CONTAINED fragment: canvas +
+      # glue + bundled fonts + recorded command stream + replayer. Works in
+      # any notebook/docs system that honors the HTML MIME. Or explicitly:
+
+write("plot.html", "<!doctype html><html><body>" * html_snippet(fig) * "</body></html>")
+# → open plot.html in any browser. No server, no framework, no requests.
 ```
+
+For interactive islands (stateless recompute), the HOST compiles a figure
+kernel with WasmTarget and wraps the module:
+
+```julia
+# host side (e.g. Therapy/PlutoIslands build step) — WasmMakie itself never compiles
+bytes = WasmTarget.compile_multi([(my_figure_kernel, (), "show")]; ...)  # + import_specs()
+write("island.html", "<!doctype html><html><body>" *
+      wasm_html_snippet(bytes, "show"; width = 400, height = 300) * "</body></html>")
+```
+
+Both forms are verified end-to-end in headless Chromium by the E-001 suite gate
+(`embedding contract GA` testset).
+
+The full contract surface a host consumes: `import_specs()`, `js_glue()`
+(includes the `canvas2d_load_fonts` FontFace loader), `js_specs()`,
+`replay_js()`, `font_faces_json()`, `html_snippet(fig)`,
+`wasm_html_snippet(bytes, export)`. Completion signal: the canvas gets
+`data-wasmmakie-done="1"` once drawn.
 
 ## Architecture: two tracks, one draw layer
 

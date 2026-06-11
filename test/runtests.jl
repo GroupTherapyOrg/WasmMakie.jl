@@ -985,6 +985,81 @@ end
     end
 end
 
+# E-001 wasm-acid kernel (top-level; the README example program)
+function e001_show()
+    fig = Figure(size = (300.0, 200.0))
+    ax = Axis(fig[1, 1])
+    lines!(ax, [0.0, 1.0, 2.0], [0.0, 1.0, 0.5])
+    render!(fig, WasmCtx())
+    return Int64(0)
+end
+
+@testset "embedding contract GA (E-001)" begin
+    fig = Figure(size = (200, 150))
+    lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.0, 1.0, 0.5]; color = :red)
+
+    snip = html_snippet(fig; id = "c")   # render_page.mjs probes #c
+    @test occursin("<canvas id=\"c\" width=\"200\" height=\"150\">", snip)
+    @test occursin("canvas2d_imports", snip)        # glue embedded
+    @test occursin("replayCommands", snip)          # replayer embedded
+    @test occursin("data:font/otf;base64,", snip)   # fonts embedded
+    @test !occursin("http://", snip) && !occursin("src=", snip)  # self-contained
+    # auto ids are unique
+    @test html_snippet(fig) != html_snippet(fig)
+    # fonts can be omitted for hosts that load them once globally
+    @test !occursin("data:font/otf", html_snippet(fig; fonts = false))
+
+    # MIME show emits the snippet (notebooks/docs get inline figures)
+    io = IOBuffer()
+    show(io, MIME"text/html"(), fig)
+    @test occursin("wasmmakie-figure", String(take!(io)))
+
+    # acid test 1 (STATIC): plain HTML file + snippet shows the plot
+    page(s) = """
+    <!doctype html><html><body>
+    $(s)
+    <script>
+    window.__done = false;
+    (function poll() {
+      const c = document.querySelector("canvas");
+      if (c && c.dataset.wasmmakieDone === "1") { window.__done = true; }
+      else { setTimeout(poll, 20); }
+    })();
+    </script></body></html>
+    """
+    dir = mktempdir()
+    html_path = joinpath(dir, "static.html"); write(html_path, page(snip))
+    png_path = joinpath(dir, "static.png")
+    script = joinpath(dirname(@__DIR__), "assets", "render_page.mjs")
+    out = IOBuffer()
+    proc = run(pipeline(ignorestatus(`node $script $html_path $png_path "[[5,5],[100,75]]"`); stdout = out))
+    if proc.exitcode == 2
+        @test_skip "playwright unavailable"
+    else
+        sout = String(take!(out))
+        @test proc.exitcode == 0
+        @test occursin("PROBE 5,5 = 255,255,255,255", sout)   # figure bg drawn
+    end
+
+    # acid test 2 (WASM): host-compiled module + wasm_html_snippet — the
+    # README plain-HTML example, verified end to end
+    bytes = compile_with_canvas(Any[(e001_show, (), "show")])
+    wsnip = wasm_html_snippet(bytes, "show"; width = 300, height = 200, id = "c")
+    @test occursin("WebAssembly.instantiate", wsnip)
+    @test occursin("canvas id=\"c\"", wsnip)
+    html_path2 = joinpath(dir, "wasm.html"); write(html_path2, page(wsnip))
+    png_path2 = joinpath(dir, "wasm.png")
+    out2 = IOBuffer()
+    proc2 = run(pipeline(ignorestatus(`node $script $html_path2 $png_path2 "[[5,5]]"`); stdout = out2))
+    if proc2.exitcode == 2
+        @test_skip "playwright unavailable"
+    else
+        sout2 = String(take!(out2))
+        @test proc2.exitcode == 0
+        @test occursin("PROBE 5,5 = 255,255,255,255", sout2)
+    end
+end
+
 @testset "static-core render pipeline (C-009)" begin
     fig = Figure(size = (300, 200))
     ax = Axis(fig[1, 1]; title = "T", xlabel = "x", ylabel = "y")

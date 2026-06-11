@@ -65,6 +65,7 @@ include("vendor/text_layouting.jl")
 include("vendor/font_metrics.jl")
 include("core/axis.jl")
 include("core/render.jl")
+include("embed.jl")
 
 export CANVAS_OPS, import_specs, js_glue, font_faces_json, FONT_FACES
 export AbstractCtx, WasmCtx, RecordingCtx, Command, to_json
@@ -82,5 +83,6 @@ export band!, pie!, boxplot!, violin!
 export crossbar!, series!, waterfall!
 export contour!, contourf!
 export mesh!, surface!, meshscatter!
+export html_snippet, wasm_html_snippet, replay_js, js_specs
 
 end # module
