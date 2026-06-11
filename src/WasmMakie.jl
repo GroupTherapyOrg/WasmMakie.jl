@@ -50,6 +50,8 @@ include("core/theme.jl")
 include("core/figure.jl")
 include("vendor/ticks.jl")
 include("vendor/tick_format.jl")
+include("vendor/colormap_viridis.jl")
+include("vendor/colors.jl")
 
 export CANVAS_OPS, import_specs, js_glue
 export AbstractCtx, WasmCtx, RecordingCtx, Command, to_json

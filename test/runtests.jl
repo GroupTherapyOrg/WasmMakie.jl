@@ -412,6 +412,33 @@ end
     @test endswith(auto3[1].text, "×10") && startswith(auto3[1].text, "1.5")
 end
 
+@testset "colormaps + interpolation (C-004) — Makie oracle hardcoded" begin
+    @test length(WasmMakie.VIRIDIS) == 256
+    @test all(c -> all(0.0 .<= c .<= 1.0), WasmMakie.VIRIDIS)
+
+    # oracle samples captured from Makie.interpolated_getindex(to_colormap(:viridis), t)
+    oracle = [
+        (0.0, (0.26700401306152344, 0.004873999860137701, 0.3294149935245514, 1.0)),
+        (0.25, (0.23022274672985077, 0.32129722833633423, 0.5454879999160767, 1.0)),
+        (0.5, (0.12814849615097046, 0.565106987953186, 0.5508924722671509, 1.0)),
+        (0.75, (0.36285924911499023, 0.7866950035095215, 0.386588990688324, 1.0)),
+        (1.0, (0.9932479858398438, 0.9061570167541504, 0.14393599331378937, 1.0)),
+        (0.123, (0.2793009877204895, 0.17238421738147736, 0.4812380075454712, 1.0)),
+    ]
+    for (t, want) in oracle
+        got = WasmMakie.colormap_color(t)
+        @test all(abs.(got .- want) .< 1e-7)  # Float64 lerp vs Makie's Float32
+    end
+
+    # range-normalized variant clamps and maps
+    @test WasmMakie.interpolated_getindex(WasmMakie.VIRIDIS, 5.0, 0.0, 10.0) ==
+          WasmMakie.colormap_color(0.5)
+    @test WasmMakie.interpolated_getindex(WasmMakie.VIRIDIS, -3.0, 0.0, 10.0) ==
+          WasmMakie.colormap_color(0.0)
+    @test_throws ErrorException WasmMakie.interpolated_getindex(WasmMakie.VIRIDIS, 1.0, 2.0, 2.0)
+    @test_throws ErrorException WasmMakie.interpolated_getindex(WasmMakie.VIRIDIS, NaN)
+end
+
 @testset "vendored optimize_ticks sanity (C-002)" begin
     ticks, lo, hi = WasmMakie.optimize_ticks(0.0, 10.0)
     @test ticks == [0.0, 5.0, 10.0]

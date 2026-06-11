@@ -34,6 +34,16 @@ end
 # segfaults the compiler (inference recursion; reproduced with PlotUtils alone
 # + WasmMakie, no Makie involved).
 
+@testset "viridis table parity vs live Makie (C-004)" begin
+    cmap = Makie.to_colormap(:viridis)
+    @test length(cmap) == length(WasmMakie.VIRIDIS)
+    for (i, c) in enumerate(cmap)
+        want = (Float64(ColorTypes.red(c)), Float64(ColorTypes.green(c)),
+                Float64(ColorTypes.blue(c)), Float64(ColorTypes.alpha(c)))
+        @test all(abs.(WasmMakie.VIRIDIS[i] .- want) .< 1e-9)
+    end
+end
+
 const HAVE_RENDERER = CanvasMakie.renderer_available()
 
 @testset "Screen protocol (D-001)" begin
