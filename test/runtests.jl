@@ -271,6 +271,60 @@ end
     end
 end
 
+include(joinpath(dirname(@__DIR__), "reftests", "wasm_compile.jl"))
+using .WasmCompile
+
+# F-007 probe: exercises the two NEW import patterns — a value-returning f64
+# import (measure_text_buf_width) whose result is both used for drawing and
+# returned, and the buffered-byte image path.
+function f007_probe()
+    canvas_set_fill_rgba(255.0, 0.0, 0.0, 1.0)
+    canvas_fill_rect(10.0, 10.0, 100.0, 50.0)
+    canvas_set_font(Int64(0), 12.0, Int64(400), Int64(0))
+    canvas_text_buf_clear()
+    canvas_text_buf_push(Int64(72))   # 'H'
+    canvas_text_buf_push(Int64(105))  # 'i'
+    w = canvas_measure_text_buf_width()
+    canvas_fill_text_buf(10.0, 80.0)
+    canvas_fill_rect(0.0, 90.0, w, 5.0)
+    canvas_img_buf_new(Int64(2), Int64(1))
+    canvas_img_buf_push_rgba(Int64(0), Int64(255), Int64(0), Int64(255))
+    canvas_img_buf_push_rgba(Int64(0), Int64(0), Int64(255), Int64(255))
+    canvas_put_image_buf(150.0, 10.0)
+    return w
+end
+
+@testset "WasmTarget e2e import proof (F-007)" begin
+    bytes = compile_with_canvas(Any[(f007_probe, (), "f007_probe")])
+    @test bytes isa Vector{UInt8}
+    @test length(bytes) > 8
+    @test bytes[1:4] == UInt8[0x00, 0x61, 0x73, 0x6D]  # \0asm
+
+    # node: value-returning import + byte crossing, against a logging ctx
+    dir = mktempdir()
+    wasm_path = joinpath(dir, "probe.wasm"); write(wasm_path, bytes)
+    glue_path = joinpath(dir, "glue.js");    write(glue_path, js_glue())
+    checker = joinpath(@__DIR__, "wasm_e2e_check.js")
+    out = read(`node $checker $wasm_path $glue_path f007_probe`, String)
+    @test occursin("WASM E2E OK", out)
+    @test occursin("result=42", out)
+
+    # browser: the same module against a REAL canvas — pixels prove it
+    res = render_wasm(bytes, "f007_probe"; width = 200, height = 100,
+                      probes = [(12, 12), (150, 10), (151, 10), (2, 92), (199, 99)])
+    if res === nothing
+        @test_skip "playwright unavailable"
+    else
+        @test res.pixels[(12, 12)] == (255, 0, 0, 255)   # red rect
+        @test res.pixels[(150, 10)] == (0, 255, 0, 255)  # image px 1: green
+        @test res.pixels[(151, 10)] == (0, 0, 255, 255)  # image px 2: blue
+        # the rect drawn with the REAL measured text width: its left edge is
+        # opaque red (measureText('Hi') at 12px is comfortably > 2px wide)
+        @test res.pixels[(2, 92)] == (255, 0, 0, 255)
+        @test res.pixels[(199, 99)] == (0, 0, 0, 0)      # untouched corner
+    end
+end
+
 @testset "WasmMakie scaffold" begin
     @test WasmMakie isa Module
     @test pkgversion(WasmMakie) == v"0.0.1"

@@ -133,6 +133,13 @@ const CANVAS_OPS = CanvasOp[
 # compiler's function registry can swap each call for a wasm import (the
 # pattern WasmPlot validated). Native execution is a no-op returning zero —
 # host-side rendering goes through RecordingCtx, never these stubs.
+#
+# Base.inferencebarrier on the return is LOAD-BEARING: without it, inference
+# const-props the literal zero into callers, so compiled wasm would call the
+# import but use the folded constant instead of the import's actual result
+# (discovered in F-007: measure_text_buf_width returned 0.0 into the caller
+# while the real measureText ran for nothing; gradient handle ids would all
+# fold to 0 the same way).
 for op in CANVAS_OPS
     fname = Symbol(:canvas_, op.name)
     argnames = [first(p) for p in op.args]
@@ -140,7 +147,7 @@ for op in CANVAS_OPS
     retval = op.ret === Float64 ? 0.0 : Int64(0)
     @eval @noinline function $fname($(argexprs...))
         Base.donotdelete($(argnames...))
-        return $retval
+        return Base.inferencebarrier($retval)::$(op.ret)
     end
     @eval export $fname
 end
