@@ -33,3 +33,7 @@ Required header in every vendored/translated file:
 | `reftests/scorer.jl` | Makie.jl master `ReferenceTests/src/compare_media.jl` (compare_images verbatim; loading/dir-scoring adapted — stills only, PNGFiles) | tooling |
 | `src/draw/lines.jl` | CairoMakie v0.15.11 `src/lines.jl` (draw_single_lines/draw_single_segments/draw_lineplot single-color branch) + `src/utils.jl` (to_cairo_linestyle/linecap/joinstyle) — Cairo→Canvas2D; explicit begin_path per run (canvas stroke keeps paths); draw_multi NOT yet translated | draw layer |
 | `CanvasMakie/src/lines.jl` | CairoMakie v0.15.11 `src/lines.jl` (draw_atomic extraction + add_projected_line_points! clipspace stage) — clip planes NOT yet applied | adapter |
+| `src/draw/image.jl` | CairoMakie v0.15.11 `src/image-hmap.jl` (draw_image fast path, _draw_rect_heatmap incl. AA-seam padding) — blit via buffered-image protocol, negative-h flip ≙ negative Cairo scale | draw layer |
+| `CanvasMakie/src/image.jl` | CairoMakie v0.15.11 `src/image-hmap.jl` (image_grid!, regularly_spaced_array_to_range verbatim, fast-path conditions) — clip planes + non-default uv_transform not consumed | adapter |
+| `CanvasMakie/src/scatter.jl` | CairoMakie v0.15.11 `src/scatter.jl` (project_marker/project_flipped/size_model! verbatim; draw_atomic extraction) — clip planes not applied | adapter |
+| `src/draw/scatter.jl` | CairoMakie v0.15.11 `src/scatter.jl` (draw_marker Circle/Rect/BezierPath, draw_path/path_command) — stroke-after-restore calibrated against oracle output | draw layer |
