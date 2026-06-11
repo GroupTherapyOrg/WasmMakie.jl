@@ -1,8 +1,13 @@
 [deps]
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+DelaunayTriangulation = "927a84f5-c5f4-47a5-9785-b46e178433df"
+CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 CanvasMakie = "9f259be2-b51e-4821-b775-9f49dc8c9861"
 ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
 FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 PNGFiles = "f57f5aa1-a3ce-4bc8-8ab9-96f992907883"

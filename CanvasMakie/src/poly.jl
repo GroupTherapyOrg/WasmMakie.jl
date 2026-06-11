@@ -103,6 +103,13 @@ end
 draw_poly(rctx::WasmMakie.RecordingCtx, scene::Scene, poly, circle::Makie.Circle) =
     draw_poly(rctx, scene, poly, Makie.GeometryBasics.decompose(Makie.Point2f, circle))
 
+draw_poly(rctx::WasmMakie.RecordingCtx, scene::Scene, poly, mp::Makie.GeometryBasics.MultiPolygon) =
+    draw_poly(rctx, scene, poly, mp.polygons)
+
+draw_poly(rctx::WasmMakie.RecordingCtx, scene::Scene, poly, circles::Vector{<:Makie.Circle}) =
+    draw_poly(rctx, scene, poly,
+              [Makie.GeometryBasics.decompose(Makie.Point2f, c) for c in circles])
+
 draw_poly(rctx::WasmMakie.RecordingCtx, scene::Scene, poly, rect::Makie.Rect2) =
     draw_poly(rctx, scene, poly, [rect])
 

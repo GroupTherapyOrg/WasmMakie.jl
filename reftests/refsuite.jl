@@ -26,6 +26,13 @@ import Makie.FileIO
 using Test
 using LinearAlgebra: normalize
 import Makie.FileIO: load
+using Makie: loadasset
+import Distributions
+using Unitful
+using CategoricalArrays
+using DelaunayTriangulation
+import SparseArrays: sparse
+using LinearAlgebra: norm
 
 # RNG: vendored verbatim from ReferenceTests/src/stable_rng.jl (MIT)
 module RNG

@@ -1,0 +1,127 @@
+# status	score	title	detail
+error	-	poly and colormap	MethodError: no method matching red(::Vector{ColorTypes.RGBA{Float32}}) The function `red` exists, but no method is defined for this combination of argument types.  Closest candidates are:   red(!Matched::ColorTypes.RGB24)    @ ColorTypes ~/.julia/packages/ColorTypes/L7biZ/src/traits.jl:17   red(!Ma
+error	-	quiver	CanvasMakie: poly with args (Vector{GeometryBasics.Mesh},) needs mesh support (plan R-005)
+error	-	Pie with Segment-specific Radius	CanvasMakie: pattern fills on poly not implemented yet (plan R-005)
+error	-	Array of Images Scatter	CanvasMakie: marker Matrix{ColorTypes.RGBA{FixedPointNumbers.N0f8}} not implemented yet
+error	-	Triplot with points, ghost edges, and convex hull	CanvasMakie: poly with args (Vector{Point{2, Float32}}, Vector{GeometryBasics.TriangleFace{Int64}}) needs mesh support (plan R-005)
+error	-	Triplot of a constrained triangulation with holes and a custom bounding box	CanvasMakie: poly with args (Vector{Point{2, Float32}}, Vector{GeometryBasics.TriangleFace{Int64}}) needs mesh support (plan R-005)
+error	-	Triplot with nonlinear transformation	CanvasMakie: poly with args (Vector{Point{2, Float32}}, Vector{GeometryBasics.TriangleFace{Int64}}) needs mesh support (plan R-005)
+error	-	Triplot after adding points and make sure the representative_point_list is correctly updated	CanvasMakie: poly with args (Vector{Point{2, Float32}}, Vector{GeometryBasics.TriangleFace{Int64}}) needs mesh support (plan R-005)
+error	-	Triplot Showing ghost edges for a triangulation with disjoint boundaries	CanvasMakie: poly with args (Vector{Point{2, Float32}}, Vector{GeometryBasics.TriangleFace{Int64}}) needs mesh support (plan R-005)
+error	-	Transformed 2D Arrows	CanvasMakie: poly with args (Vector{GeometryBasics.Mesh},) needs mesh support (plan R-005)
+error	-	arrows2d alignment	CanvasMakie: poly with args (Vector{GeometryBasics.Mesh},) needs mesh support (plan R-005)
+error	-	arrows2d z-order	CanvasMakie: poly with args (Vector{GeometryBasics.Mesh},) needs mesh support (plan R-005)
+error	-	Dendrogram	CanvasMakie: poly with args (Vector{Union{AbstractVector{<:Union{NTuple{N, T}, StaticArraysCore.StaticArray{Tuple{N}, T, 1}} where {N, T}}, NTuple{N, T} where {N, T}, GeometryBasics.AbstractMesh, GeometryBasics.HyperRectangle, GeometryBasics.MultiPolygon, GeometryBasics.Polygon, StaticArraysCore.Sta
+recorded	2.0	intersecting polygon	
+recorded	2.0	Voronoiplot with empty polygons and automatic color generation	
+recorded	0.052	RGB heatmap, heatmap + image overlap	
+recorded	0.0518	Voronoiplot with a nonlinear transform	
+recorded	0.0465	LaTeXStrings linesegment offsets	
+recorded	0.0435	colorscale (lines)	
+recorded	0.0429	series	
+recorded	0.0396	Pie Position	
+recorded	0.0346	annotation manual	
+recorded	0.0343	heatmap_interpolation	
+recorded	0.0342	Scalar colors from colormaps	
+recorded	0.033	Heatmap Shader	
+recorded	0.0309	hexbin scale	
+recorded	0.0302	heatmap and image colormap interpolation	
+recorded	0.0296	Histogram	
+recorded	0.0263	Polygons	
+recorded	0.0259	annotation pointcloud	
+recorded	0.0257	contour labels with transform_func	
+recorded	0.0253	Violin plots differently scaled	
+recorded	0.0249	boxplot	
+recorded	0.0249	nonlinear colormap	
+recorded	0.0245	hexbin threshold	
+recorded	0.0244	image	
+recorded	0.0236	Voronoiplot with some custom bounding boxes may not contain all data sites	
+recorded	0.0236	Voronoiplot for a tessellation with a custom bounding box	
+recorded	0.0231	bracket scalar	
+recorded	0.0231	Stephist	
+recorded	0.022	rainclouds	
+recorded	0.0207	Simple pie charts	
+recorded	0.0198	stem	
+recorded	0.0197	minor grid & scales	
+recorded	0.0196	Scatter & Text transformations	
+recorded	0.0187	spurious minor tick (#3487)	
+recorded	0.0176	Grouped bar	
+recorded	0.0175	contour labels 2D	
+recorded	0.0174	contourf bug #3683	
+recorded	0.0174	trimspine	
+recorded	0.0164	qqplot	
+recorded	0.0163	Barplot label positions	
+recorded	0.016	stairs	
+recorded	0.0154	streamplot	
+recorded	0.015	Datashader AggCount	
+recorded	0.0149	Datashader AggMean	
+recorded	0.0149	lines (some with NaNs) with array colors	
+recorded	0.0143	colorscale (hexbin)	
+recorded	0.0143	hvlines + hvspan with transform_func	
+recorded	0.0137	Rangebars x y low high	
+recorded	0.0137	ablines + hvlines + hvspan	
+recorded	0.0137	Plotting empty polygons	
+recorded	0.0136	ecdfplot	
+recorded	0.0136	scale_plot	
+recorded	0.0136	Violin	
+recorded	0.0134	colorscale (heatmap)	
+recorded	0.0132	Errorbars x y low high	
+recorded	0.0131	Voronoiplot after adding points	
+recorded	0.013	Log scale histogram (barplot)	
+recorded	0.0128	colormap with specific values	
+recorded	0.0122	Z-translation within a recipe	
+recorded	0.012	Errorbars log scale	
+recorded	0.0118	colorscale (scatter)	
+recorded	0.0116	crossbar	
+recorded	0.0109	hist(...; gap=0.1)	
+recorded	0.0107	Spy	
+recorded	0.0107	MultiHist	
+recorded	0.0107	hexbin logscale	
+recorded	0.0105	bracket vector	
+recorded	0.0102	Voronoiplots with clipped tessellation and unbounded polygons	
+recorded	0.0101	filled contour 2d with curvilinear grid	
+recorded	0.01	waterfall	
+recorded	0.01	qqnorm	
+recorded	0.0099	hexbin colorrange highclip lowclip	
+recorded	0.0093	contour with single alpha color	
+recorded	0.0091	Voronoiplot for a centroidal tessellation with an automatic colormap	
+skipped	-	Arrows on hemisphere	skip pattern: mesh(
+skipped	-	FEM poly and mesh	skip pattern: mesh(
+skipped	-	colored triangle (mesh, poly, 3D) + poly stroke	skip pattern: mesh(
+skipped	-	Standard deviation band	skip pattern: band(
+skipped	-	Band with NaN	skip pattern: band!
+skipped	-	Transforming lines	skip pattern: Stepper
+skipped	-	Axes label rotations	skip pattern: Stepper
+skipped	-	Colorbar label rotations	skip pattern: Stepper
+skipped	-	space 2D	skip pattern: mesh!
+skipped	-	space 2D autolimits	skip pattern: mesh!
+skipped	-	2D surface with explicit color	skip pattern: surface(
+skipped	-	textlabel	skip pattern: mesh!
+skipped	-	Tooltip	skip pattern: mesh!
+skipped	-	tricontourf	skip pattern: tricontourf
+skipped	-	tricontourf extendhigh extendlow	skip pattern: tricontourf
+skipped	-	tricontourf relative mode	skip pattern: tricontourf
+skipped	-	tricontourf manual vs delaunay	skip pattern: tricontourf
+skipped	-	tricontourf with boundary nodes	skip pattern: tricontourf
+skipped	-	tricontourf with boundary nodes and edges	skip pattern: tricontourf
+skipped	-	tricontourf with provided triangulation	skip pattern: tricontourf
+skipped	-	tricontourf alpha transparency	skip pattern: tricontourf
+skipped	-	contour 2d with curvilinear grid	skip pattern: surface(
+skipped	-	contour labels 3D	skip pattern: Axis3
+skipped	-	hexbin bin int	skip pattern: wireframe
+skipped	-	hexbin bin tuple	skip pattern: wireframe
+skipped	-	hexbin two cellsizes	skip pattern: wireframe
+skipped	-	hexbin one cellsize	skip pattern: wireframe
+skipped	-	px_per_unit and scalefactor	skip pattern: Stepper
+skipped	-	Clip planes - CairoMakie overrides	skip pattern: band!
+skipped	-	Color Patterns	skip pattern: mesh!
+skipped	-	Color Pattern orientation	skip pattern: mesh(
+skipped	-	Color patterns in recipes	skip pattern: band!
+skipped	-	arrow min- and maxshaftlength scaling	skip pattern: arrows3d
+skipped	-	arrows3d alignment	skip pattern: arrows3d
+skipped	-	arrows2d updates	skip pattern: Stepper
+skipped	-	arrows3d updates	skip pattern: arrows3d
+skipped	-	Transformed rotations	skip pattern: contour3d
+unsupported	-	Streamplot animation	result type VideoStream (video/steps?)
+unsupported	-	Line changing colour	result type VideoStream (video/steps?)
+# REFPASS passed=69/88 scored=73 recorded=73 errored=13 unsupported=2 rate=0.784
