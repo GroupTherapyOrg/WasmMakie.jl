@@ -44,6 +44,67 @@ end
     end
 end
 
+@testset "grid solver parity vs live Makie layout (C-006)" begin
+    # y-down conversion of a Makie (y-up) bbox within a figure of height H
+    ydown(bb, H) = (Float64(Makie.left(bb)), H - Float64(Makie.top(bb)),
+                    Float64(Makie.width(bb)), Float64(Makie.height(bb)))
+    rect_tuple(r) = (r.x, r.y, r.w, r.h)
+    close4(a, b; tol = 0.51) = all(abs.(a .- b) .< tol)  # Float32 grid rounding
+
+    # 2×2 Box grid: zero protrusions, Auto sizes, Makie defaults
+    fig = Figure(size = (400, 300))
+    boxes = [Box(fig[r, c]) for r in 1:2, c in 1:2]
+    Makie.update_state_before_display!(fig)
+    oracle = [ydown(boxes[r, c].layoutobservables.computedbbox[], 300.0)
+              for r in 1:2, c in 1:2]
+
+    prots = fill(WasmMakie.Protrusions(), 4)
+    sizes = [WasmMakie.auto_size(), WasmMakie.auto_size()]
+    rects = WasmMakie.solve_grid(0.0, 0.0, 400.0, 300.0, Int64(2), Int64(2), prots,
+                                 sizes, sizes, 18.0, 18.0;
+                                 outside_pad = WasmMakie.THEME_FIGURE_PADDING)
+    for r in 1:2, c in 1:2
+        @test close4(rect_tuple(rects[(r - 1) * 2 + c]), oracle[r, c])
+    end
+
+    # 1×2 Axis grid: REAL protrusions from Makie fed into our solver — the
+    # solver math must reproduce Makie's computed axis rects
+    fig2 = Figure(size = (500, 400))
+    ax1 = Axis(fig2[1, 1]; ylabel = "left ylabel")
+    ax2 = Axis(fig2[1, 2])
+    Makie.update_state_before_display!(fig2)
+    function mk_prot(ax)
+        p = ax.layoutobservables.protrusions[]
+        return WasmMakie.Protrusions(Float64(p.left), Float64(p.right),
+                                     Float64(p.top), Float64(p.bottom))
+    end
+    prots2 = [mk_prot(ax1), mk_prot(ax2)]
+    rects2 = WasmMakie.solve_grid(0.0, 0.0, 500.0, 400.0, Int64(1), Int64(2), prots2,
+                                  [WasmMakie.auto_size()], sizes, 18.0, 18.0;
+                                  outside_pad = WasmMakie.THEME_FIGURE_PADDING)
+    o1 = ydown(ax1.layoutobservables.computedbbox[], 400.0)
+    o2 = ydown(ax2.layoutobservables.computedbbox[], 400.0)
+    @test close4(rect_tuple(rects2[1]), o1)
+    @test close4(rect_tuple(rects2[2]), o2)
+
+    # Fixed + Relative col sizes
+    fig3 = Figure(size = (400, 200))
+    b1 = Box(fig3[1, 1]; width = nothing)
+    b2 = Box(fig3[1, 2])
+    colsize!(fig3.layout, 1, Makie.Fixed(100))
+    colsize!(fig3.layout, 2, Makie.Relative(0.5))
+    Makie.update_state_before_display!(fig3)
+    rects3 = WasmMakie.solve_grid(0.0, 0.0, 400.0, 200.0, Int64(1), Int64(2),
+                                  fill(WasmMakie.Protrusions(), 2),
+                                  [WasmMakie.auto_size()],
+                                  [WasmMakie.fixed_size(100.0), WasmMakie.relative_size(0.5)],
+                                  18.0, 18.0; outside_pad = WasmMakie.THEME_FIGURE_PADDING)
+    @test close4(rect_tuple(rects3[1]),
+                 ydown(b1.layoutobservables.computedbbox[], 200.0))
+    @test close4(rect_tuple(rects3[2]),
+                 ydown(b2.layoutobservables.computedbbox[], 200.0))
+end
+
 const HAVE_RENDERER = CanvasMakie.renderer_available()
 
 @testset "Screen protocol (D-001)" begin
