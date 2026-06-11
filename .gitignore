@@ -5,3 +5,4 @@ reftests/recorded/
 node_modules/
 *.wasm
 .DS_Store
+reftests/vendor_upstream/image_download.jl
