@@ -6,9 +6,10 @@
 # override. Tick values are `locateticks` (the `automatic` path), labels the
 # C-003 formatter.
 #
-# Protrusions use stand-in text metrics (the RecordingCtx ratios calibrated
-# against Makie's reported protrusions) — EXACT extents arrive with the text
-# engine (plan T-004); the documented tolerance until then is a few px.
+# Protrusions use the T-004 deterministic metric tables: heights are the
+# font-level line box (ascender − descender = 1.165em for TGH — the earlier
+# calibrated TEXT_HEIGHT_RATIO was exactly this), widths the ink extent of
+# the laid-out label through the vendored layouting.
 
 # Makie Axis decoration constants (captured from default attributes)
 const AXIS_TICKSIZE = 5.0
@@ -16,9 +17,9 @@ const AXIS_TICKLABELPAD = 2.0
 const AXIS_LABELPADDING = 3.0
 const AXIS_SPINEWIDTH = 1.0
 const AXIS_TITLEGAP = 4.0
-# stand-in text metrics (calibrated vs Makie-reported protrusions @ 14px)
-const TEXT_HEIGHT_RATIO = 1.165   # full line height / fontsize
-const TEXT_CHAR_RATIO = 0.7       # avg label char width / fontsize
+# full line height / fontsize == FreeType (ascender − descender)/em for TGH
+# (T-004 tables confirmed the calibration: 0.947 + 0.218 = 1.165)
+const TEXT_HEIGHT_RATIO = 1.165
 
 "Fully resolved axis: final limits, ticks, labels, and protrusions."
 struct ResolvedAxis
@@ -77,14 +78,34 @@ function final_limits(ax::Axis)
     return xmin, xmax, ymin, ymax
 end
 
-function _max_label_chars(labels::Vector{TickLabel})
-    n = 0
-    for l in labels
-        len = length(l.text) + length(l.sup)
-        len > n && (n = len)
+# Advance-sum width of a tick label at `size` px — Makie's text_bb width is
+# the FULL-ADVANCE sum (oracle-verified: text_bb("0.25", TGH, 14) = 27.244 =
+# Σ hadvance·14), not the ink extent. T-004 tables supply the advances.
+function _label_advance_width(l::TickLabel, size::Float64)
+    t = TableExtents()
+    w = 0.0
+    for c in l.text
+        w += glyph_extent!(t, nothing, Int64(codepoint(c)), Int64(0), Int64(400), Int64(0)).hadvance
     end
-    return n
+    for c in l.sup   # superscript drawn full-size until rich labels land
+        w += glyph_extent!(t, nothing, Int64(codepoint(c)), Int64(0), Int64(400), Int64(0)).hadvance
+    end
+    return w * size
 end
+
+function _max_label_width(labels::Vector{TickLabel}, size::Float64)
+    w = 0.0
+    for l in labels
+        lw = _label_advance_width(l, size)
+        lw > w && (w = lw)
+    end
+    return w
+end
+
+# Oracle-pinned constant: Makie's measured left protrusion exceeds
+# ticksize + ticklabelpad + max advance width by EXACTLY 2.0 px across all
+# probed scenes (lines/barplot/heatmap/barneg @ 2026-06-11 oracle run).
+const AXIS_TICKLABEL_EXTRA = 2.0
 
 """
     resolve_axis(ax) -> ResolvedAxis
@@ -93,8 +114,10 @@ Limits → ticks (`locateticks`, n_ideal 5) → labels → protrusions.
 """
 function resolve_axis(ax::Axis)
     xmin, xmax, ymin, ymax = final_limits(ax)
-    xticks = locateticks(xmin, xmax, 5)
-    yticks = locateticks(ymin, ymax, 5)
+    # Makie `automatic` = WilkinsonTicks(5, k_min=3) over optimize_ticks
+    # (lineaxis.jl:560) — locateticks only serves explicit tick objects
+    xticks = wilkinson_ticks_default(xmin, xmax)
+    yticks = wilkinson_ticks_default(ymin, ymax)
     xlabels = format_ticks_auto(xticks)
     ylabels = format_ticks_auto(yticks)
 
@@ -105,8 +128,8 @@ function resolve_axis(ax::Axis)
     if !isempty(ax.xlabel)
         bottom += AXIS_LABELPADDING + TEXT_HEIGHT_RATIO * ax.xlabelsize
     end
-    left = AXIS_TICKSIZE + AXIS_TICKLABELPAD +
-           TEXT_CHAR_RATIO * tlsize * _max_label_chars(ylabels)
+    left = AXIS_TICKSIZE + AXIS_TICKLABELPAD + _max_label_width(ylabels, tlsize) +
+           AXIS_TICKLABEL_EXTRA
     if !isempty(ax.ylabel)
         left += AXIS_LABELPADDING + TEXT_HEIGHT_RATIO * ax.ylabelsize
     end

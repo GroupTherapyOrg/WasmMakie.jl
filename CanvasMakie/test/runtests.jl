@@ -138,7 +138,7 @@ using .RefScorer
     println("core_parity score (lines+scatter, 400x300): ", round(score, digits = 4))
     # documented LOOSE tier until T-004 exact text extents align the inner
     # rects; the metric is recorded in the plan on every change
-    @test score < 0.35
+    @test score < 0.2   # T-005: exact ticks/protrusions
 
     # structural agreement: both have red scatter ink and near-black spine ink
     redish(px) = Float64(ColorTypes.red(px)) > 0.8 && Float64(ColorTypes.green(px)) < 0.3

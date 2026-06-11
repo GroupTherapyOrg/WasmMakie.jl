@@ -42,8 +42,8 @@ open(joinpath(@__DIR__, "scores_core_corpus.tsv"), "w") do io
     for (name, score) in sort(results; by = last, rev = true)
         println(io, round(score, digits = 4), '\t', name)
     end
-    passed = count(r -> r[2] <= 0.35, results)
-    println(io, "# CORE_PARITY passed=$(passed)/$(length(results)) @ loose tier 0.35 (T-004 tightens)")
+    passed = count(r -> r[2] <= 0.30, results)
+    println(io, "# CORE_PARITY passed=$(passed)/$(length(results)) @ tier 0.30 (T-005-tightened; text scenes ~0.15)")
 end
-passed = count(r -> r[2] <= 0.35, results)
-println("CORE_PARITY: $(passed)/$(length(results)) @ 0.35  worst=$(round(maximum(last.(results)), digits = 4))")
+passed = count(r -> r[2] <= 0.30, results)
+println("CORE_PARITY: $(passed)/$(length(results)) @ 0.30  worst=$(round(maximum(last.(results)), digits = 4))")

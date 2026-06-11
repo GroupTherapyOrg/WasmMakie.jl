@@ -11,7 +11,7 @@ include(joinpath(@__DIR__, "scorer.jl"))
 
 const W = 400
 const H = 300
-const TIER = 0.35   # same loose tier as core_parity until T-004
+const TIER = 0.30   # same tier as core_parity (T-005-tightened)
 
 CanvasMakie.activate!()
 

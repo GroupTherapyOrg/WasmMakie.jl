@@ -1,15 +1,15 @@
 # score	scene  (wasm Chromium render vs real-Makie CanvasMakie render)
-0.922	09_barplot_negative
-0.8915	11_image_primaries
-0.8657	10_heatmap_viridis
-0.7482	08_barplot
-0.5628	13_grid_2x2
-0.2774	12_titles_and_labels
-0.206	01_single_line
-0.206	02_two_lines_cycle
-0.206	03_thick_red_line
-0.206	04_dashed_line
-0.206	05_scatter_default
-0.206	06_scatter_sized_rect
-0.206	07_lines_plus_scatter
-# WASM_REFPASS passed=8/13 @ loose tier 0.35 (T-004 tightens)
+0.9116	08_barplot
+0.9095	09_barplot_negative
+0.7745	11_image_primaries
+0.76	10_heatmap_viridis
+0.5609	13_grid_2x2
+0.2659	12_titles_and_labels
+0.1459	01_single_line
+0.1459	02_two_lines_cycle
+0.1459	03_thick_red_line
+0.1459	04_dashed_line
+0.1459	05_scatter_default
+0.1459	06_scatter_sized_rect
+0.1459	07_lines_plus_scatter
+# WASM_REFPASS passed=8/13 @ loose tier 0.3 (T-004 tightens)

@@ -589,13 +589,13 @@ end
     @test res.xticklabels[1] == WasmMakie.TickLabel("1.0", "")
     @test length(res.yticklabels) == length(res.yticks)
 
-    # protrusions: approximate parity vs Makie oracle (default axis:
-    # left 16.784, bottom 23.31) — exact extents arrive with T-004
+    # protrusions: EXACT Makie parity (T-005; oracle 2026-06-11: empty default
+    # axis → yticks [0,5,10], labels 0/5/10, left 24.568, bottom 23.31)
     res2 = WasmMakie.resolve_axis(ax2)
-    # sanity bands only — Makie composes these from real FreeType extents
-    # (oracle: bottom 23.31, left 16.784); exact parity is T-004-gated
-    @test 18.0 < res2.prot.b < 28.0
-    @test 10.0 < res2.prot.l < 30.0
+    @test res2.xticks == [0.0, 5.0, 10.0]               # Wilkinson, not locateticks
+    @test [l.text for l in res2.xticklabels] == ["0", "5", "10"]
+    @test abs(res2.prot.b - 23.31) < 1e-9
+    @test abs(res2.prot.l - 24.568) < 1e-3              # Makie reports Float32
     @test res2.prot.t == 0.0 && res2.prot.r == 0.0
     # labels/title add protrusion
     ax4 = Axis(Figure()[1, 1]; title = "T", xlabel = "x", ylabel = "y")

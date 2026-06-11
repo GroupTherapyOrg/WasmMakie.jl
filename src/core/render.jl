@@ -208,13 +208,15 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
     for (v, lab) in zip(res.xticks, res.xticklabels)
         x = px_x(t, v)
         _vline!(ctx, x, irect.y + irect.h, irect.y + irect.h + AXIS_TICKSIZE)
-        _text!(ctx, lab.text, x, irect.y + irect.h + AXIS_TICKSIZE + AXIS_TICKLABELPAD,
+        _text!(ctx, lab.text, x,
+               irect.y + irect.h + AXIS_SPINEWIDTH + AXIS_TICKSIZE + AXIS_TICKLABELPAD,
                tlsize, Int64(1), Int64(1), THEME_TEXTCOLOR)
     end
     for (v, lab) in zip(res.yticks, res.yticklabels)
         y = px_y(t, v)
         _hline!(ctx, irect.x - AXIS_TICKSIZE, irect.x, y)
-        _text!(ctx, lab.text, irect.x - AXIS_TICKSIZE - AXIS_TICKLABELPAD, y,
+        _text!(ctx, lab.text,
+               irect.x - AXIS_SPINEWIDTH - AXIS_TICKSIZE - AXIS_TICKLABELPAD, y,
                tlsize, Int64(2), Int64(2), THEME_TEXTCOLOR)
     end
 

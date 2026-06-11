@@ -31,9 +31,38 @@ function bounding_order_of_magnitude(xspan::T, base::T) where {T}
     return b
 end
 
+# WTGAP(adb7337104b3 family): kwarg floor/round (digits=/sigdigits=) traps in
+# wasm — power-of-ten arithmetic replacements, parity-pinned by the C-002
+# subprocess oracle.
+# negative powers of ten are inexact doubles — use the divide form there
+# (matches Base's rounding identity round(x / 10^k) * 10^k)
+function _floor_digits(x::Float64, d::Int)
+    if d >= 0
+        s = 10.0^d
+        return floor(x * s) / s
+    else
+        h = 10.0^(-d)
+        return floor(x / h) * h
+    end
+end
+
+function _round_sigdigits10(x::Float64, sig::Int)
+    x == 0.0 && return 0.0
+    isfinite(x) || return x
+    e = floor(Int, log10(abs(x)))
+    p = sig - 1 - e
+    if p >= 0
+        s = 10.0^p
+        return round(x * s) / s
+    else
+        h = 10.0^(-p)
+        return round(x / h) * h
+    end
+end
+
 function postdecimal_digits(x::T) where {T}
     for i in floor(Int, log10(floatmin(T))):ceil(Int, log10(floatmax(T)))
-        x == floor(x; digits = i) && return i
+        x == _floor_digits(x, i) && return i
     end
     return 0
 end
@@ -115,9 +144,13 @@ Base.@constprop :none function optimize_ticks_typed(
 
     z = bounding_order_of_magnitude(xspan, base_float)
 
+    max_post = 0  # WTGAP: generator-maximum → loop
+    for q in Qv
+        pd = postdecimal_digits(q)
+        pd > max_post && (max_post = pd)
+    end
     num_digits = (
-        bounding_order_of_magnitude(max(abs(x_min), abs(x_max)), base_float) +
-            maximum(postdecimal_digits(q) for q in Qv)
+        bounding_order_of_magnitude(max(abs(x_min), abs(x_max)), base_float) + max_post
     )
 
     viewmin_best, viewmax_best = x_min, x_max
@@ -132,7 +165,9 @@ Base.@constprop :none function optimize_ticks_typed(
         while 2k_max * base_float^(z + 1) > xspan
             sigdigits = max(1, num_digits - z)
             for k in k_min:(2k_max)
-                for (q, qscore) in zip(Qv, Qs)
+                for qi in 1:length(Qv)  # WTGAP: zip iteration → indexed loop
+                    q = Qv[qi]
+                    qscore = Qs[qi]
                     tickspan = q * base_float^z
                     tickspan < eps(F) && continue
                     span = (k - 1) * tickspan
@@ -158,10 +193,10 @@ Base.@constprop :none function optimize_ticks_typed(
                             imin = 1
                             imax = k
                         end
-                        S[imin] =
-                            viewmin = round(S[imin], sigdigits = sigdigits, base = base)
-                        S[imax] =
-                            viewmax = round(S[imax], sigdigits = sigdigits, base = base)
+                        # WTGAP(adb7337104b3 family): round(sigdigits=, base=)
+                        # → power-of-ten form (base is always 10 on this path)
+                        S[imin] = viewmin = _round_sigdigits10(S[imin], sigdigits)
+                        S[imax] = viewmax = _round_sigdigits10(S[imax], sigdigits)
 
                         if strict_span
                             viewmin = max(viewmin, x_min)
@@ -209,7 +244,9 @@ Base.@constprop :none function optimize_ticks_typed(
                         if score > high_score && (k_min ≤ len ≤ k_max)
                             viewmin_best, viewmax_best = viewmin, viewmax
                             high_score, len_S_best = score, len
-                            copyto!(S_best, view(S, 1:len))
+                            for ci in 1:len  # WTGAP: copyto!+view → loop
+                                S_best[ci] = S[ci]
+                            end
                         end
                         r += 1
                     end
@@ -218,6 +255,41 @@ Base.@constprop :none function optimize_ticks_typed(
             z -= 1
         end
     end
-    resize!(S_best, len_S_best)
-    return high_score, S_best, viewmin_best, viewmax_best
+    # WTGAP(4c40e07c9230): resize! to a SMALLER length traps in wasm
+    # (growing works) — exact-size copy instead
+    out_best = Vector{F}(undef, len_S_best)
+    for i in 1:len_S_best
+        out_best[i] = S_best[i]
+    end
+    return high_score, out_best, viewmin_best, viewmax_best
+end
+
+# Makie's `automatic` linear ticks (T-005): lineaxis.jl:560 dispatches
+# automatic → WilkinsonTicks(5, k_min = 3) → PlotUtils.optimize_ticks with
+# extend_ticks=false, strict_span=true, default Q/weights. Positional body
+# (kwarg call sites trap in wasm, WTGAP dd8864a83097) mirroring the
+# optimize_ticks wrapper above.
+function wilkinson_ticks_default(x_min::Float64, x_max::Float64)
+    rtol = 1000.0 * eps(Float64)
+    if isapprox(x_min, x_max, rtol = rtol)
+        return fallback_ticks(x_min, x_max, 3, 10, true)[1]
+    end
+    Qv = Float64[1.0, 5.0, 2.0, 2.5, 3.0]
+    Qs = Float64[1.0, 0.9, 0.7, 0.5, 0.2]
+    for i in 1:2
+        sspan = i == 1 ? true : false
+        high_score, best, _, _ = optimize_ticks_typed(
+            x_min, x_max, false, Qv, Qs, 3, 10, 5,
+            0.25, 1.0 / 6.0, 1.0 / 3.0, 0.25,
+            sspan, 0.0, false, 10.0, 10,
+        )
+        if isinf(high_score)
+            if !sspan
+                return fallback_ticks(x_min, x_max, 3, 10, true)[1]
+            end
+        else
+            return best
+        end
+    end
+    return Float64[x_min, x_max]
 end
