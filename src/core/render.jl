@@ -93,8 +93,9 @@ function _vline!(ctx, x::Float64, y1::Float64, y2::Float64)
 end
 
 function _text!(ctx, s::String, x::Float64, y::Float64, size::Float64,
-                halign::Int64, valign::Int64, color::NTuple{4,Float64})
-    set_font(ctx, Int64(0), size, Int64(400), Int64(0))
+                halign::Int64, valign::Int64, color::NTuple{4,Float64},
+                weight::Int64 = Int64(400))
+    set_font(ctx, Int64(0), size, weight, Int64(0))
     set_text_align(ctx, halign)      # 0 left, 1 center, 2 right
     set_text_baseline(ctx, valign)   # 0 alphabetic, 1 top, 2 middle, 3 bottom
     set_fill_rgba(ctx, 255.0 * color[1], 255.0 * color[2], 255.0 * color[3], color[4])
@@ -114,14 +115,30 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
     set_fill_rgba(ctx, 255.0, 255.0, 255.0, 1.0)
     fill_rect(ctx, irect.x, irect.y, irect.w, irect.h)
 
-    # grid (under the data)
-    _set_stroke!(ctx, GRID_COLOR, 1.0)
+    # grid (under the data); minor grid first (Makie z-order)
     set_line_dash4(ctx, 0.0, 0.0, 0.0, 0.0, Int64(0))
-    for v in res.xticks
-        _vline!(ctx, px_x(t, v), irect.y, irect.y + irect.h)
+    if ax.xminorgridvisible
+        _set_stroke!(ctx, MINORGRID_COLOR, 1.0)
+        for v in _minor_positions(res.xticks, ax.xminorticks_n)
+            _vline!(ctx, px_x(t, v), irect.y, irect.y + irect.h)
+        end
     end
-    for v in res.yticks
-        _hline!(ctx, irect.x, irect.x + irect.w, px_y(t, v))
+    if ax.yminorgridvisible
+        _set_stroke!(ctx, MINORGRID_COLOR, 1.0)
+        for v in _minor_positions(res.yticks, ax.yminorticks_n)
+            _hline!(ctx, irect.x, irect.x + irect.w, px_y(t, v))
+        end
+    end
+    _set_stroke!(ctx, GRID_COLOR, 1.0)
+    if ax.xgridvisible
+        for v in res.xticks
+            _vline!(ctx, px_x(t, v), irect.y, irect.y + irect.h)
+        end
+    end
+    if ax.ygridvisible
+        for v in res.yticks
+            _hline!(ctx, irect.x, irect.x + irect.w, px_y(t, v))
+        end
     end
 
     # plots, clipped to the axis rect
@@ -196,40 +213,72 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
     end
     restore(ctx)
 
-    # spines (over the data)
+    # spines (over the data), per-side visibility (L-001)
     _set_stroke!(ctx, (0.0, 0.0, 0.0, 1.0), AXIS_SPINEWIDTH)
     set_line_dash4(ctx, 0.0, 0.0, 0.0, 0.0, Int64(0))
-    begin_path(ctx)
-    rect(ctx, irect.x, irect.y, irect.w, irect.h)
-    stroke(ctx)
+    ax.leftspinevisible &&
+        _vline!(ctx, irect.x, irect.y, irect.y + irect.h)
+    ax.rightspinevisible &&
+        _vline!(ctx, irect.x + irect.w, irect.y, irect.y + irect.h)
+    ax.topspinevisible &&
+        _hline!(ctx, irect.x, irect.x + irect.w, irect.y)
+    ax.bottomspinevisible &&
+        _hline!(ctx, irect.x, irect.x + irect.w, irect.y + irect.h)
 
-    # ticks + tick labels
+    # ticks + tick labels (visibility-gated; minor ticks size 3)
     tlsize = THEME_FONTSIZE
+    if ax.xminorticksvisible
+        for v in _minor_positions(res.xticks, ax.xminorticks_n)
+            x = px_x(t, v)
+            _vline!(ctx, x, irect.y + irect.h, irect.y + irect.h + AXIS_MINORTICKSIZE)
+        end
+    end
+    if ax.yminorticksvisible
+        for v in _minor_positions(res.yticks, ax.yminorticks_n)
+            _hline!(ctx, irect.x - AXIS_MINORTICKSIZE, irect.x, px_y(t, v))
+        end
+    end
     for (v, lab) in zip(res.xticks, res.xticklabels)
         x = px_x(t, v)
-        _vline!(ctx, x, irect.y + irect.h, irect.y + irect.h + AXIS_TICKSIZE)
-        _text!(ctx, lab.text, x,
-               irect.y + irect.h + AXIS_SPINEWIDTH + AXIS_TICKSIZE + AXIS_TICKLABELPAD,
-               tlsize, Int64(1), Int64(1), THEME_TEXTCOLOR)
+        ax.xticksvisible &&
+            _vline!(ctx, x, irect.y + irect.h, irect.y + irect.h + AXIS_TICKSIZE)
+        ax.xticklabelsvisible &&
+            _text!(ctx, lab.text, x,
+                   irect.y + irect.h + AXIS_SPINEWIDTH + AXIS_TICKSIZE + AXIS_XTICKLABELPAD,
+                   tlsize, Int64(1), Int64(1), THEME_TEXTCOLOR)
     end
     for (v, lab) in zip(res.yticks, res.yticklabels)
         y = px_y(t, v)
-        _hline!(ctx, irect.x - AXIS_TICKSIZE, irect.x, y)
-        _text!(ctx, lab.text,
-               irect.x - AXIS_SPINEWIDTH - AXIS_TICKSIZE - AXIS_TICKLABELPAD, y,
-               tlsize, Int64(2), Int64(2), THEME_TEXTCOLOR)
+        ax.yticksvisible &&
+            _hline!(ctx, irect.x - AXIS_TICKSIZE, irect.x, y)
+        ax.yticklabelsvisible &&
+            _text!(ctx, lab.text,
+                   irect.x - AXIS_SPINEWIDTH - AXIS_TICKSIZE - AXIS_YTICKLABELPAD, y,
+                   tlsize, Int64(2), Int64(2), THEME_TEXTCOLOR)
     end
 
-    # title + labels
-    isempty(ax.title) ||
-        _text!(ctx, ax.title, irect.x + 0.5 * irect.w, irect.y - AXIS_TITLEGAP,
-               ax.titlesize, Int64(1), Int64(3), THEME_TEXTCOLOR)
-    isempty(ax.xlabel) ||
+    # title (BOLD — Makie titlefont :bold) + subtitle + axis labels
+    title_x = ax.titlealign == 0 ? irect.x :
+              ax.titlealign == 2 ? irect.x + irect.w : irect.x + 0.5 * irect.w
+    title_halign = ax.titlealign == 0 ? Int64(0) :
+                   ax.titlealign == 2 ? Int64(2) : Int64(1)
+    sub_h = (ax.subtitlevisible && !isempty(ax.subtitle)) ?
+            TEXT_HEIGHT_RATIO * ax.subtitlesize + ax.subtitlegap : 0.0
+    if ax.subtitlevisible && !isempty(ax.subtitle)
+        _text!(ctx, ax.subtitle, title_x, irect.y - ax.subtitlegap,
+               ax.subtitlesize, title_halign, Int64(3), THEME_TEXTCOLOR)
+    end
+    if ax.titlevisible && !isempty(ax.title)
+        _text!(ctx, ax.title, title_x, irect.y - sub_h - ax.titlegap,
+               ax.titlesize, title_halign, Int64(3), THEME_TEXTCOLOR, Int64(700))
+    end
+    if ax.xlabelvisible && !isempty(ax.xlabel)
         _text!(ctx, ax.xlabel, irect.x + 0.5 * irect.w,
-               irect.y + irect.h + AXIS_TICKSIZE + AXIS_TICKLABELPAD +
+               irect.y + irect.h + AXIS_TICKSIZE + AXIS_XTICKLABELPAD +
                TEXT_HEIGHT_RATIO * tlsize + AXIS_LABELPADDING,
                ax.xlabelsize, Int64(1), Int64(1), THEME_TEXTCOLOR)
-    if !isempty(ax.ylabel)
+    end
+    if ax.ylabelvisible && !isempty(ax.ylabel)
         save(ctx)
         translate(ctx, irect.x - res.prot.l + TEXT_HEIGHT_RATIO * ax.ylabelsize * 0.5,
                   irect.y + 0.5 * irect.h)

@@ -11,12 +11,16 @@
 # calibrated TEXT_HEIGHT_RATIO was exactly this), widths the ink extent of
 # the laid-out label through the vendored layouting.
 
-# Makie Axis decoration constants (captured from default attributes)
+# Makie Axis decoration constants (captured from @Block Axis defaults)
 const AXIS_TICKSIZE = 5.0
-const AXIS_TICKLABELPAD = 2.0
+const AXIS_XTICKLABELPAD = 2.0   # xticklabelpad
+const AXIS_YTICKLABELPAD = 4.0   # yticklabelpad — NOT 2 (the old +2.0
+                                 # "extra" oracle constant was this asymmetry)
 const AXIS_LABELPADDING = 3.0
 const AXIS_SPINEWIDTH = 1.0
 const AXIS_TITLEGAP = 4.0
+const AXIS_MINORTICKSIZE = 3.0
+const MINORGRID_COLOR = (0.0, 0.0, 0.0, 0.05000000074505806)  # RGBAf(0,0,0,0.05)
 # full line height / fontsize == FreeType (ascender − descender)/em for TGH
 # (T-004 tables confirmed the calibration: 0.947 + 0.218 = 1.165)
 const TEXT_HEIGHT_RATIO = 1.165
@@ -102,15 +106,24 @@ function _max_label_width(labels::Vector{TickLabel}, size::Float64)
     return w
 end
 
-# Oracle-pinned constant: Makie's measured left protrusion exceeds
-# ticksize + ticklabelpad + max advance width by EXACTLY 2.0 px across all
-# probed scenes (lines/barplot/heatmap/barneg @ 2026-06-11 oracle run).
-const AXIS_TICKLABEL_EXTRA = 2.0
+"Minor tick positions: `n` intervals between adjacent majors (Makie IntervalsBetween)."
+function _minor_positions(majors::Vector{Float64}, n::Int64)
+    out = Float64[]
+    n >= 2 || return out
+    for i in 1:(length(majors) - 1)
+        step = (majors[i + 1] - majors[i]) / Float64(n)
+        for k in 1:(n - 1)
+            push!(out, majors[i] + step * Float64(k))
+        end
+    end
+    return out
+end
 
 """
     resolve_axis(ax) -> ResolvedAxis
 
-Limits → ticks (`locateticks`, n_ideal 5) → labels → protrusions.
+Limits → ticks (Wilkinson `automatic`) → labels → protrusions (visibility-
+aware, mirroring Makie `calculate_protrusion`).
 """
 function resolve_axis(ax::Axis)
     xmin, xmax, ymin, ymax = final_limits(ax)
@@ -124,16 +137,29 @@ function resolve_axis(ax::Axis)
     tlsize = THEME_FONTSIZE  # ticklabelsize default == fontsize
     label_h = TEXT_HEIGHT_RATIO * tlsize
 
-    bottom = AXIS_TICKSIZE + AXIS_TICKLABELPAD + label_h
-    if !isempty(ax.xlabel)
+    bottom = ax.xticksvisible ? AXIS_TICKSIZE : 0.0
+    if ax.xticklabelsvisible
+        bottom += label_h + AXIS_XTICKLABELPAD
+    end
+    if ax.xlabelvisible && !isempty(ax.xlabel)
         bottom += AXIS_LABELPADDING + TEXT_HEIGHT_RATIO * ax.xlabelsize
     end
-    left = AXIS_TICKSIZE + AXIS_TICKLABELPAD + _max_label_width(ylabels, tlsize) +
-           AXIS_TICKLABEL_EXTRA
-    if !isempty(ax.ylabel)
+
+    left = ax.yticksvisible ? AXIS_TICKSIZE : 0.0
+    if ax.yticklabelsvisible
+        left += _max_label_width(ylabels, tlsize) + AXIS_YTICKLABELPAD
+    end
+    if ax.ylabelvisible && !isempty(ax.ylabel)
         left += AXIS_LABELPADDING + TEXT_HEIGHT_RATIO * ax.ylabelsize
     end
-    top = isempty(ax.title) ? 0.0 : TEXT_HEIGHT_RATIO * ax.titlesize + AXIS_TITLEGAP
+
+    top = 0.0
+    if ax.titlevisible && !isempty(ax.title)
+        top += TEXT_HEIGHT_RATIO * ax.titlesize + ax.titlegap
+    end
+    if ax.subtitlevisible && !isempty(ax.subtitle)
+        top += TEXT_HEIGHT_RATIO * ax.subtitlesize + ax.subtitlegap
+    end
 
     return ResolvedAxis(xmin, xmax, ymin, ymax, xticks, xlabels, yticks, ylabels,
                         Protrusions(left, 0.0, top, bottom))

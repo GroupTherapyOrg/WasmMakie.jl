@@ -90,6 +90,20 @@ const CORPUS = Scene2[
                 Makie.scatter!(Makie.Axis(fig[1, 2]), XS, YS2);
                 Makie.barplot!(Makie.Axis(fig[2, 1]), [1, 2, 3], [1.0, 2.0, 1.5]);
                 Makie.lines!(Makie.Axis(fig[2, 2]), XS, YS2; color = :green))),
+    Scene2("axis: hidden decorations + spines",
+        fig -> (ax = WasmMakie.Axis(fig[1, 1]);
+                WasmMakie.lines!(ax, XS, YS1);
+                WasmMakie.hidedecorations!(ax); WasmMakie.hidespines!(ax)),
+        (Makie, fig) -> (ax = Makie.Axis(fig[1, 1]);
+                Makie.lines!(ax, XS, YS1);
+                Makie.hidedecorations!(ax); Makie.hidespines!(ax))),
+    Scene2("axis: minorgrid + bold title + subtitle",
+        fig -> (ax = WasmMakie.Axis(fig[1, 1]; title = "Title", subtitle = "Sub");
+                ax.xminorgridvisible = true; ax.yminorgridvisible = true;
+                WasmMakie.lines!(ax, XS, YS1)),
+        (Makie, fig) -> (ax = Makie.Axis(fig[1, 1]; title = "Title", subtitle = "Sub",
+                                         xminorgridvisible = true, yminorgridvisible = true);
+                Makie.lines!(ax, XS, YS1))),
 ]
 
 end # module

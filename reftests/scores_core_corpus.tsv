@@ -1,15 +1,17 @@
 # score	scene  (static core vs real-Makie CanvasMakie render)
 0.9116	core: barplot
 0.9095	core: barplot negative
-0.7745	core: image primaries
-0.76	core: heatmap viridis
+0.7618	core: image primaries
+0.7437	core: heatmap viridis
 0.5609	core: 2x2 grid
-0.2659	core: titles and labels
-0.1459	core: single line
-0.1459	core: two lines cycle
-0.1459	core: thick red line
-0.1459	core: dashed line
-0.1459	core: scatter default
-0.1459	core: scatter sized rect
-0.1459	core: lines + scatter
-# CORE_PARITY passed=8/13 @ tier 0.30 (T-005-tightened; text scenes ~0.15)
+0.233	core: titles and labels
+0.1547	axis: minorgrid + bold title + subtitle
+0.1179	core: single line
+0.1179	core: two lines cycle
+0.1179	core: thick red line
+0.1179	core: dashed line
+0.1179	core: scatter default
+0.1179	core: scatter sized rect
+0.1179	core: lines + scatter
+0.0	axis: hidden decorations + spines
+# CORE_PARITY passed=10/15 @ tier 0.30 (T-005-tightened; text scenes ~0.15)

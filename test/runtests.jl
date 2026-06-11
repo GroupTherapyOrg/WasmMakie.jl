@@ -348,7 +348,7 @@ end
     @test ax.row == 1 && ax.col == 1
     @test ax.title == "T" && ax.xlabel == "x" && ax.ylabel == "y"
     @test isnan(ax.xmin) && isnan(ax.ymax)        # automatic limits
-    @test ax.titlesize == 16.0 && ax.xlabelsize == 14.0
+    @test ax.titlesize == 14.0 && ax.xlabelsize == 14.0  # titlesize @inherit(:fontsize)
 
     Axis(fig[2, 2])
     @test WasmMakie.grid_extents(fig) == (2, 2)
@@ -605,6 +605,48 @@ end
     @test res4.prot.t > 0.0
 end
 
+
+@testset "axis decorations complete (L-001)" begin
+    ax = Axis(Figure()[1, 1]; title = "T", subtitle = "S", xlabel = "x", ylabel = "y")
+    @test ax.titlesize == 14.0 && ax.subtitlesize == 14.0   # @inherit(:fontsize)
+    @test ax.xgridvisible && !ax.xminorgridvisible && !ax.xminorticksvisible
+
+    # subtitle adds top protrusion on top of the title block
+    res = WasmMakie.resolve_axis(ax)
+    axt = Axis(Figure()[1, 1]; title = "T", xlabel = "x", ylabel = "y")
+    rest = WasmMakie.resolve_axis(axt)
+    @test res.prot.t ≈ rest.prot.t + 1.165 * 14.0   # subtitlegap 0
+
+    # hide functions flip the right flags and shrink protrusions
+    hidedecorations!(ax)
+    @test !ax.xlabelvisible && !ax.yticklabelsvisible && !ax.xgridvisible
+    @test ax.titlevisible    # title NOT hidden (Makie parity)
+    resh = WasmMakie.resolve_axis(ax)
+    @test resh.prot.b == 0.0 && resh.prot.l == 0.0
+    hidespines!(ax, :t, :r)
+    @test !ax.topspinevisible && !ax.rightspinevisible && ax.leftspinevisible
+
+    # minor positions: IntervalsBetween(2) = midpoints
+    @test WasmMakie._minor_positions([0.0, 1.0, 2.0], Int64(2)) == [0.5, 1.5]
+    @test WasmMakie._minor_positions([0.0, 1.0], Int64(4)) == [0.25, 0.5, 0.75]
+    @test isempty(WasmMakie._minor_positions([0.0, 1.0], Int64(1)))
+
+    # render stream reflects visibility: hidden axis => no text at all
+    fig = Figure(size = (300, 200))
+    axh = Axis(fig[1, 1])
+    lines!(axh, [0.0, 1.0], [0.0, 1.0])
+    hidedecorations!(axh)
+    hidespines!(axh)
+    r = RecordingCtx(); render!(fig, r)
+    @test !any(c -> c.op === :fill_text_buf, r.commands)
+    # bold title op present when titled
+    fig2 = Figure(size = (300, 200))
+    ax4 = Axis(fig2[1, 1]; title = "T")
+    ax4.xminorgridvisible = true
+    lines!(ax4, [0.0, 1.0], [0.0, 1.0])
+    r2 = RecordingCtx(); render!(fig2, r2)
+    @test any(c -> c.op === :set_font && c.iargs[2] == 700, r2.commands)
+end
 
 @testset "static-core render pipeline (C-009)" begin
     fig = Figure(size = (300, 200))

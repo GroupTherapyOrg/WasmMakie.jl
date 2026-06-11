@@ -24,6 +24,32 @@ mutable struct Axis
     titlesize::Float64
     xlabelsize::Float64
     ylabelsize::Float64
+    # L-001 decoration attributes (Makie @Block Axis defaults, types.jl)
+    subtitle::String
+    subtitlesize::Float64     # 16 (@inherit fontsize 16)
+    titlegap::Float64         # 4
+    subtitlegap::Float64      # 0
+    titlealign::Int64         # 0 left, 1 center, 2 right (:center default)
+    titlevisible::Bool
+    subtitlevisible::Bool
+    xlabelvisible::Bool
+    ylabelvisible::Bool
+    xgridvisible::Bool        # true
+    ygridvisible::Bool        # true
+    xminorgridvisible::Bool   # false
+    yminorgridvisible::Bool   # false
+    xminorticksvisible::Bool  # false
+    yminorticksvisible::Bool  # false
+    xminorticks_n::Int64      # IntervalsBetween(2)
+    yminorticks_n::Int64
+    xticksvisible::Bool       # true
+    yticksvisible::Bool       # true
+    xticklabelsvisible::Bool  # true
+    yticklabelsvisible::Bool  # true
+    leftspinevisible::Bool    # true
+    rightspinevisible::Bool
+    topspinevisible::Bool
+    bottomspinevisible::Bool
     # typed plot containers (closed-world: one concrete vector per kind,
     # types defined in plots.jl which is included before this file) + order
     lines::Vector{LinesPlot}
@@ -34,11 +60,20 @@ mutable struct Axis
     plot_order::Vector{Tuple{Int64,Int64}}  # (PLOT_* kind, index)
 end
 
-function Axis(; title::String = "", xlabel::String = "", ylabel::String = "")
+_titlealign_code(s::Symbol) = s === :left ? Int64(0) : s === :right ? Int64(2) : Int64(1)
+
+function Axis(; title::String = "", xlabel::String = "", ylabel::String = "",
+              subtitle::String = "", titlealign::Symbol = :center)
     return Axis(1, 1, title, xlabel, ylabel,
                 NaN, NaN, NaN, NaN,
-                16.0,  # Makie Axis titlesize default (@inherit titlesize 16f0)
+                THEME_FONTSIZE,  # titlesize @inherit(:fontsize) — theme 14, NOT the 16 fallback
                 THEME_FONTSIZE, THEME_FONTSIZE,
+                subtitle, THEME_FONTSIZE, 4.0, 0.0, _titlealign_code(titlealign),
+                true, true, true, true,
+                true, true, false, false, false, false,
+                2, 2,
+                true, true, true, true,
+                true, true, true, true,
                 LinesPlot[], ScatterPlot[], BarPlotData[], HeatmapPlot[],
                 ImagePlot[], Tuple{Int64,Int64}[])
 end
@@ -74,6 +109,62 @@ end
 
 Base.getindex(fig::Figure, row::Integer, col::Integer) =
     GridPosition(fig, Int64(row), Int64(col))
+
+"""
+    hidexdecorations!(ax; label = true, ticklabels = true, ticks = true,
+                      grid = true, minorgrid = true, minorticks = true)
+
+Hide x-axis decorations (Makie parity; flags select which).
+"""
+function hidexdecorations!(ax::Axis; label::Bool = true, ticklabels::Bool = true,
+                           ticks::Bool = true, grid::Bool = true,
+                           minorgrid::Bool = true, minorticks::Bool = true)
+    label && (ax.xlabelvisible = false)
+    ticklabels && (ax.xticklabelsvisible = false)
+    ticks && (ax.xticksvisible = false)
+    grid && (ax.xgridvisible = false)
+    minorgrid && (ax.xminorgridvisible = false)
+    minorticks && (ax.xminorticksvisible = false)
+    return ax
+end
+
+"Hide y-axis decorations (Makie parity; flags select which)."
+function hideydecorations!(ax::Axis; label::Bool = true, ticklabels::Bool = true,
+                           ticks::Bool = true, grid::Bool = true,
+                           minorgrid::Bool = true, minorticks::Bool = true)
+    label && (ax.ylabelvisible = false)
+    ticklabels && (ax.yticklabelsvisible = false)
+    ticks && (ax.yticksvisible = false)
+    grid && (ax.ygridvisible = false)
+    minorgrid && (ax.yminorgridvisible = false)
+    minorticks && (ax.yminorticksvisible = false)
+    return ax
+end
+
+"Hide x and y decorations (the title is NOT hidden — Makie parity)."
+function hidedecorations!(ax::Axis; label::Bool = true, ticklabels::Bool = true,
+                          ticks::Bool = true, grid::Bool = true,
+                          minorgrid::Bool = true, minorticks::Bool = true)
+    hidexdecorations!(ax; label, ticklabels, ticks, grid, minorgrid, minorticks)
+    hideydecorations!(ax; label, ticklabels, ticks, grid, minorgrid, minorticks)
+    return ax
+end
+
+"""
+    hidespines!(ax, spines::Symbol... = :l, :r, :t, :b)
+
+Hide axis spines (`:l`eft, `:r`ight, `:t`op, `:b`ottom — Makie parity).
+"""
+function hidespines!(ax::Axis, spines::Symbol...)
+    sps = isempty(spines) ? (:l, :r, :t, :b) : spines
+    for s in sps
+        s === :l && (ax.leftspinevisible = false)
+        s === :r && (ax.rightspinevisible = false)
+        s === :t && (ax.topspinevisible = false)
+        s === :b && (ax.bottomspinevisible = false)
+    end
+    return ax
+end
 
 function Axis(gp::GridPosition; kwargs...)
     ax = Axis(; kwargs...)
