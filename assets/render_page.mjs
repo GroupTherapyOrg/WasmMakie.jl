@@ -41,6 +41,9 @@ try {
     console.error("PAGE ERROR: " + err)
     process.exit(1)
   }
+  // settle rasterization before reading pixels — headless Chromium can
+  // transiently report a blank canvas right after drawing (observed flake)
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
   const probes = JSON.parse(probesArg || "[]")
   for (const [x, y] of probes) {
     const px = await page.evaluate(([x, y]) => {
