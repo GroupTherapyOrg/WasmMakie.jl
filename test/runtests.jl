@@ -5,7 +5,7 @@ import Base64 as _B64check
 
 @testset "ops table (F-002)" begin
     ops = WasmMakie.CANVAS_OPS
-    @test length(ops) == 61
+    @test length(ops) == 63
     @test allunique([op.name for op in ops])
     # Only Float64/Int64 cross the import boundary
     for op in ops
@@ -60,7 +60,7 @@ end
     write(specs_path, specs_json)
     checker = joinpath(@__DIR__, "js_glue_check.js")
     out = read(`node $checker $glue_path $specs_path`, String)
-    @test occursin("JS GLUE OK: 61 ops", out)
+    @test occursin("JS GLUE OK: 63 ops", out)
 end
 
 @testset "ctx duality (F-003)" begin
@@ -140,7 +140,7 @@ end
     @test occursin("\"arc\":[\"F64\",\"F64\",\"F64\",\"F64\",\"F64\",\"I64\"]", specs)
     @test occursin("\"begin_path\":[]", specs)
     nops = read(`node -e "console.log(Object.keys(JSON.parse(process.argv[1])).length)" $specs`, String)
-    @test strip(nops) == "61"
+    @test strip(nops) == "63"
 
     # Record a program exercising every conversion class, then replay it
     # through the REAL glue in node and assert the resulting canvas calls.
@@ -899,6 +899,94 @@ end
             px[1] < 200 && (inked = true)
         end
         @test inked
+    end
+end
+
+# T-002 wasm kernels (top-level: closures don't compile)
+function k_t002_cache()
+    p = ExtentProvider()
+    ctx = WasmCtx()
+    g1 = glyph_extent!(p, ctx, Int64(77), Int64(0), Int64(400), Int64(0))
+    g2 = glyph_extent!(p, ctx, Int64(77), Int64(0), Int64(400), Int64(0))
+    g3 = glyph_extent!(p, ctx, Int64(77), Int64(0), Int64(400), Int64(0))
+    return Int64(length(p.keys)) + Int64(round(1000.0 * (g1.hadvance + g2.hadvance + g3.hadvance)))
+end
+
+function k_t002_draw_measured()
+    ctx = WasmCtx()
+    WasmMakie.set_fill_rgba(ctx, 255.0, 255.0, 255.0, 1.0)
+    WasmMakie.fill_rect(ctx, 0.0, 0.0, 120.0, 30.0)
+    p = ExtentProvider()
+    g = glyph_extent!(p, ctx, Int64(77), Int64(0), Int64(400), Int64(0))  # 'M'
+    WasmMakie.set_fill_rgba(ctx, 255.0, 0.0, 0.0, 1.0)
+    WasmMakie.fill_rect(ctx, 0.0, 0.0, g.hadvance * 64.0, 10.0)
+    return Int64(0)
+end
+
+@testset "measure_text extent provider (T-002)" begin
+    # RecordingCtx oracle: extents reflect the deterministic stand-in ratios,
+    # normalized per font-size unit
+    r = RecordingCtx()
+    p = ExtentProvider()
+    g = glyph_extent!(p, r, Int64(77), Int64(0), Int64(400), Int64(0))
+    @test g.hadvance ≈ 0.55
+    @test g.ascent ≈ 0.8
+    @test g.descent ≈ 0.2
+    @test g.left ≈ 0.04
+    @test g.right ≈ 0.51
+    # one miss = set_font + clear + push + 5 measures = 8 ops
+    @test length(r.commands) == 8
+
+    # cache hit: no new ops, identical object semantics
+    g2 = glyph_extent!(p, r, Int64(77), Int64(0), Int64(400), Int64(0))
+    @test length(r.commands) == 8
+    @test g2.hadvance == g.hadvance
+    # different face = new entry
+    glyph_extent!(p, r, Int64(77), Int64(0), Int64(700), Int64(0))
+    @test length(p.keys) == 2
+    @test length(r.commands) == 16
+
+    # key packing is collision-free across the fields
+    ks = [WasmMakie._extent_key(cp, fam, wt, it)
+          for cp in Int64[65, 0x10FFFF], fam in Int64[0, 2],
+              wt in Int64[400, 700], it in Int64[0, 1]]
+    @test allunique(ks)
+
+    # derived helpers
+    cps = Int64[72, 105]  # "Hi"
+    adv = text_advance!(p, r, cps, 14.0, Int64(0), Int64(400), Int64(0))
+    @test adv ≈ 2 * 0.55 * 14.0
+    w, asc, desc = string_extent!(p, r, cps, 14.0, Int64(0), Int64(400), Int64(0))
+    @test w ≈ adv && asc ≈ 0.8 * 14.0 && desc ≈ 0.2 * 14.0
+
+    # compiled: the cache works in wasm — 3 lookups, ONE measure group in the
+    # logged stream (stream-checker measureText returns 0s; cache size is 1)
+    bytes = compile_with_canvas(Any[(k_t002_cache, (), "k")])
+    dir = mktempdir()
+    wp = joinpath(dir, "k.wasm"); write(wp, bytes)
+    gp = joinpath(dir, "glue.js"); write(gp, js_glue())
+    checker = joinpath(@__DIR__, "wasm_stream_check.js")
+    stream_json = strip(read(`node $checker $wp $gp k`, String))
+    @test startswith(stream_json, "[")
+    counts = read(`node -e "
+      const s = JSON.parse(process.argv[1]);
+      const n = (op) => s.filter(c => c.op === op).length;
+      console.log(n('set_font'), n('measure_text_buf_width'), n('measure_text_buf_left'));
+    " $stream_json`, String)
+    @test strip(counts) == "1 1 1"
+
+    # browser: a LIVE measureText value (loaded TeX Gyre face) flows through
+    # the typed provider in wasm — red rect width == measured 'M' advance @64px
+    bytes2 = compile_with_canvas(Any[(k_t002_draw_measured, (), "k")])
+    res = render_wasm(bytes2, "k"; width = 120, height = 30,
+                      probes = [(10, 2), (40, 2), (60, 2), (110, 2)])
+    if res === nothing
+        @test_skip "playwright unavailable"
+    else
+        @test res.pixels[(10, 2)] == (255, 0, 0, 255)   # inside any plausible M
+        @test res.pixels[(40, 2)] == (255, 0, 0, 255)   # M advance ≥ ~45px @64
+        @test res.pixels[(60, 2)] == (255, 255, 255, 255) # and ≤ ~58px
+        @test res.pixels[(110, 2)] == (255, 255, 255, 255)
     end
 end
 

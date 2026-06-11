@@ -55,6 +55,7 @@ const _SPECIAL_RECORDING_OPS = (
     :set_font, :text_buf_clear, :text_buf_push,
     :gradient_linear_new, :gradient_clear_all,
     :measure_text_buf_width, :measure_text_buf_ascent, :measure_text_buf_descent,
+    :measure_text_buf_left, :measure_text_buf_right,
     :width, :height, :device_pixel_ratio,
 )
 
@@ -124,6 +125,18 @@ end
 function measure_text_buf_descent(ctx::RecordingCtx)
     push!(ctx.commands, Command(:measure_text_buf_descent, Float64[], Int64[]))
     return ctx.descent_ratio * ctx.font_size
+end
+
+# ink bounds stand-ins: fixed 0.04·size side bearing (real values via the
+# loaded fonts in browsers; bit-exact parity is the T-004 metric tables)
+function measure_text_buf_left(ctx::RecordingCtx)
+    push!(ctx.commands, Command(:measure_text_buf_left, Float64[], Int64[]))
+    return 0.04 * ctx.font_size
+end
+
+function measure_text_buf_right(ctx::RecordingCtx)
+    push!(ctx.commands, Command(:measure_text_buf_right, Float64[], Int64[]))
+    return ctx.char_width_ratio * ctx.font_size * ctx.buf_len - 0.04 * ctx.font_size
 end
 
 function width(ctx::RecordingCtx)

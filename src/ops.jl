@@ -110,6 +110,10 @@ const CANVAS_OPS = CanvasOp[
         "() => { const m = ctx.measureText(S.buf); return m.actualBoundingBoxAscent ?? 0; }"),
     CanvasOp(:measure_text_buf_descent, [], F,
         "() => { const m = ctx.measureText(S.buf); return m.actualBoundingBoxDescent ?? 0; }"),
+    CanvasOp(:measure_text_buf_left, [], F,
+        "() => { const m = ctx.measureText(S.buf); return m.actualBoundingBoxLeft ?? 0; }"),
+    CanvasOp(:measure_text_buf_right, [], F,
+        "() => { const m = ctx.measureText(S.buf); return m.actualBoundingBoxRight ?? 0; }"),
 
     # ── images (buffered RGBA protocol) ──────────────────────────────────
     CanvasOp(:img_buf_new, [:w=>I, :h=>I], I,
