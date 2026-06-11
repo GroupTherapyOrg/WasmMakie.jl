@@ -1,5 +1,6 @@
 using Test
 using WasmMakie
+import WasmTarget
 
 @testset "ops table (F-002)" begin
     ops = WasmMakie.CANVAS_OPS
@@ -437,6 +438,58 @@ end
           WasmMakie.colormap_color(0.0)
     @test_throws ErrorException WasmMakie.interpolated_getindex(WasmMakie.VIRIDIS, 1.0, 2.0, 2.0)
     @test_throws ErrorException WasmMakie.interpolated_getindex(WasmMakie.VIRIDIS, NaN)
+end
+
+# C-005 kernel at top level so WasmTarget gets clean typed IR
+function geom_kernel_c005(x::Float64, y::Float64)::Float64
+    T = WasmMakie.mat4_mul(WasmMakie.mat4_viewport(640.0, 480.0),
+                           WasmMakie.mat4_translation_scale(0.1, 0.2, 0.0, 2.0, 2.0, 1.0))
+    p = WasmMakie.project_px(T, x, y)
+    return p.x + p.y
+end
+
+@testset "geometry types + WasmTarget decision (C-005)" begin
+    M = WasmMakie
+    # identity behaves
+    v = M.mat4_vec4(M.MAT4_I, M.Vec4(1.0, 2.0, 3.0, 1.0))
+    @test (v.x, v.y, v.z, v.w) == (1.0, 2.0, 3.0, 1.0)
+    # column-major getindex
+    T = M.mat4_translation_scale(7.0, 8.0, 9.0, 2.0, 3.0, 4.0)
+    @test T[1, 1] == 2.0 && T[2, 2] == 3.0 && T[3, 3] == 4.0
+    @test T[1, 4] == 7.0 && T[2, 4] == 8.0 && T[3, 4] == 9.0
+    # composition: scale then translate
+    p = M.mat4_vec4(T, M.Vec4(1.0, 1.0, 1.0, 1.0))
+    @test (p.x, p.y, p.z) == (9.0, 11.0, 13.0)
+    # mat4_mul against hand-computed product
+    A = M.mat4_translation_scale(1.0, 0.0, 0.0, 2.0, 1.0, 1.0)
+    B = M.mat4_translation_scale(0.0, 3.0, 0.0, 1.0, 5.0, 1.0)
+    AB = M.mat4_mul(A, B)
+    q = M.mat4_vec4(AB, M.Vec4(1.0, 1.0, 0.0, 1.0))
+    qq = M.mat4_vec4(A, M.mat4_vec4(B, M.Vec4(1.0, 1.0, 0.0, 1.0)))
+    @test (q.x, q.y) == (qq.x, qq.y)
+    # viewport: ndc (0,0) → center, (1,1) → top-right (y-down)
+    V = M.mat4_viewport(640.0, 480.0)
+    c = M.project_px(V, 0.0, 0.0)
+    @test (c.x, c.y) == (320.0, 240.0)
+    tr = M.project_px(V, 1.0, 1.0)
+    @test (tr.x, tr.y) == (640.0, 0.0)
+
+    # THE DECISION GATE: the geometry kernel compiles through WasmTarget and
+    # matches native bit-for-bit in node. (StaticArrays' equivalent compiled
+    # at 14.6KB vs our 4.7KB; ntuple-closure form overflowed the compiler —
+    # WTGAP queued for W-003.)
+    native = geom_kernel_c005(0.25, -0.5)
+    bytes = WasmTarget.compile(geom_kernel_c005, (Float64, Float64))
+    @test length(bytes) > 8 && length(bytes) < 10_000
+    dir = mktempdir()
+    wasm_path = joinpath(dir, "geom.wasm")
+    write(wasm_path, bytes)
+    out = read(`node -e "
+      const fs = require('fs');
+      WebAssembly.instantiate(fs.readFileSync('$wasm_path'), {Math:{pow:Math.pow}}).then(m => {
+        console.log(m.instance.exports.geom_kernel_c005(0.25, -0.5));
+      });"`, String)
+    @test parse(Float64, strip(out)) === native
 end
 
 @testset "vendored optimize_ticks sanity (C-002)" begin
