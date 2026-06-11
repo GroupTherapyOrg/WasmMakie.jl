@@ -1,0 +1,12 @@
+# metric	value	budget   (scene: 4-subplot all-types grid, 400×300; oz = wasm-opt -Oz)
+module_size_raw_kb	1060.6	—
+module_size_gzip_kb	480.7	—
+module_size_oz_raw_kb	444.3	—
+module_size_oz_gzip_kb	188.7	≤ 400
+oz_stream_equal	true	must hold
+compile_cold_s	24.9	—
+compile_warm_s	10.4	≤ 30
+redraw_median_ms	1.83	≤ 16 (60 fps)
+redraw_p95_ms	3.494	—
+redraw_min_ms	1.696	—
+redraw_max_ms	4.144	—
