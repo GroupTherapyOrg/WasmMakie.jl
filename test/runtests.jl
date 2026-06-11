@@ -181,6 +181,41 @@ end
     @test occursin("REPLAY OK: 18 commands round-tripped", out)
 end
 
+include(joinpath(dirname(@__DIR__), "reftests", "harness.jl"))
+using .Harness
+
+@testset "headless render harness (F-005)" begin
+    # red rect program → real Chromium pixels
+    r = RecordingCtx()
+    WasmMakie.set_fill_rgba(r, 255.0, 0.0, 0.0, 1.0)
+    WasmMakie.fill_rect(r, 10.0, 10.0, 100.0, 50.0)
+    res = render_commands(to_json(r); width = 200, height = 100,
+                          probes = [(12, 12), (5, 5), (150, 80)])
+    if res === nothing
+        @test_skip "playwright unavailable"
+    else
+        @test res.png[1:8] == UInt8[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+        @test png_dims(res.png) == (200, 100)
+        @test res.pixels[(12, 12)] == (255, 0, 0, 255)   # inside the rect
+        @test res.pixels[(5, 5)] == (0, 0, 0, 0)         # outside: transparent
+        @test res.pixels[(150, 80)] == (0, 0, 0, 0)
+
+        # stroked thick line: midpoint is opaque black
+        r2 = RecordingCtx()
+        WasmMakie.begin_path(r2)
+        WasmMakie.set_line_width(r2, 10.0)
+        WasmMakie.move_to(r2, 0.0, 50.0)
+        WasmMakie.line_to(r2, 200.0, 50.0)
+        WasmMakie.stroke(r2)
+        res2 = render_commands(to_json(r2); width = 200, height = 100, probes = [(100, 50)])
+        @test res2.pixels[(100, 50)] == (0, 0, 0, 255)
+
+        # page errors propagate with the JS message
+        bad = "[{\"op\":\"begin_path\",\"args\":[1.0]}]"  # arity mismatch
+        @test_throws Harness.PageError render_commands(bad)
+    end
+end
+
 @testset "WasmMakie scaffold" begin
     @test WasmMakie isa Module
     @test pkgversion(WasmMakie) == v"0.0.1"
