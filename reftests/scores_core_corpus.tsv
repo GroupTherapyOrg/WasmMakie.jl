@@ -1,0 +1,15 @@
+# score	scene  (static core vs real-Makie CanvasMakie render)
+0.922	core: barplot negative
+0.8915	core: image primaries
+0.8657	core: heatmap viridis
+0.7482	core: barplot
+0.5628	core: 2x2 grid
+0.2774	core: titles and labels
+0.206	core: single line
+0.206	core: two lines cycle
+0.206	core: thick red line
+0.206	core: dashed line
+0.206	core: scatter default
+0.206	core: scatter sized rect
+0.206	core: lines + scatter
+# CORE_PARITY passed=8/13 @ loose tier 0.35 (T-004 tightens)
