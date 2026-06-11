@@ -58,7 +58,7 @@ function render_commands(commands_json::AbstractString;
     write(html_path, _page_html(commands_json, specs, glue, replay_src; width, height))
     png_path = joinpath(dir, "out.png")
     probes_json = "[" * join(["[$x,$y]" for (x, y) in probes], ",") * "]"
-    script = joinpath(REFTESTS_DIR, "render_page.mjs")
+    script = joinpath(PKG_DIR, "assets", "render_page.mjs")
 
     out = IOBuffer(); err = IOBuffer()
     proc = run(pipeline(ignorestatus(`node $script $html_path $png_path $probes_json`);
@@ -116,7 +116,7 @@ function render_wasm(wasm_bytes::Vector{UInt8}, export_name::AbstractString;
     write(html_path, _wasm_page_html(wasm_b64, glue, export_name; width, height))
     png_path = joinpath(dir, "out.png")
     probes_json = "[" * join(["[$x,$y]" for (x, y) in probes], ",") * "]"
-    script = joinpath(REFTESTS_DIR, "render_page.mjs")
+    script = joinpath(PKG_DIR, "assets", "render_page.mjs")
 
     out = IOBuffer(); err = IOBuffer()
     proc = run(pipeline(ignorestatus(`node $script $html_path $png_path $probes_json`);
