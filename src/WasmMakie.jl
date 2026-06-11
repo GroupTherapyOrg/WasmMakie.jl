@@ -75,5 +75,6 @@ export hidedecorations!, hidexdecorations!, hideydecorations!, hidespines!
 export axislegend, Colorbar
 export colsize!, rowsize!, Relative, Fixed, Auto
 export hlines!, vlines!, hspan!, vspan!, ablines!, linesegments!, scatterlines!
+export stairs!, hist!, errorbars!, rangebars!, stem!, density!
 
 end # module

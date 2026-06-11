@@ -772,6 +772,49 @@ end
     @test length(r.commands) > 120
 end
 
+@testset "wave-1 stats recipes (R-002 complete)" begin
+    ax = Axis(Figure()[1, 1])
+    st = stairs!(ax, [0.0, 1.0, 2.0], [0.0, 1.0, 0.5])
+    # :pre expansion doubles interior points (Makie stairs.jl verbatim)
+    @test st.x == [0.0, 0.0, 1.0, 1.0, 2.0]
+    @test st.y == [0.0, 1.0, 1.0, 0.5, 0.5]
+    st2 = stairs!(ax, [0.0, 1.0, 2.0], [0.0, 1.0, 0.5]; step = :post)
+    @test st2.x == [0.0, 1.0, 1.0, 2.0, 2.0]
+    @test st2.y == [0.0, 0.0, 1.0, 1.0, 0.5]
+    st3 = stairs!(ax, [0.0, 2.0], [0.0, 1.0]; step = :center)
+    @test st3.x == [0.0, 1.0, 1.0, 2.0]
+
+    # hist: right-open edge binning (0.2 belongs to bin 2, not 1). Counts
+    # match Makie's range-based edges (ULP-sensitive: edges[3] =
+    # 0.30000000000000004 puts 0.3 in bin 2 — corpus oracle confirms, 0.217)
+    axh = Axis(Figure()[1, 1])
+    hb = hist!(axh, [0.1, 0.2, 0.2, 0.3, 0.45, 0.5, 0.5, 0.55, 0.7, 0.9]; bins = 8)
+    @test hb.y == [1.0, 3.0, 0.0, 3.0, 1.0, 1.0, 0.0, 1.0]
+    @test sum(hb.y) == 10.0
+    @test hb.width ≈ (nextfloat(0.9) - 0.1) / 8
+    @test hb.color[4] == 0.8   # patchcolor cycle alpha
+
+    # errorbars/rangebars are segment pairs
+    axe = Axis(Figure()[1, 1])
+    eb = errorbars!(axe, [1.0], [2.0], [0.5])
+    @test eb.x == [1.0, 1.0] && eb.y == [1.5, 2.5]
+    rb = rangebars!(axe, [3.0], [0.0], [1.0])
+    @test rb.y == [0.0, 1.0]
+
+    # stem = trunk + stems + heads
+    axs = Axis(Figure()[1, 1])
+    stem!(axs, [1.0, 2.0], [0.5, -0.5])
+    @test length(axs.lines) == 1 && length(axs.segments) == 1 && length(axs.scatters) == 1
+
+    # density: vendored Silverman KDE integrates to ~1
+    axd = Axis(Figure()[1, 1])
+    d = density!(axd, [0.1, 0.2, 0.25, 0.3, 0.5, 0.55, 0.6, 0.9])
+    @test length(d.x) == 200
+    stepw = d.x[2] - d.x[1]
+    @test abs(sum(d.y) * stepw - 1.0) < 0.02
+    @test all(d.y .>= 0.0)
+end
+
 @testset "static-core render pipeline (C-009)" begin
     fig = Figure(size = (300, 200))
     ax = Axis(fig[1, 1]; title = "T", xlabel = "x", ylabel = "y")
@@ -954,6 +997,16 @@ function w005_annotations()
     linesegments!(ax, [0.2, 0.8, 1.2, 1.8], [1.4, 1.4, 0.2, 0.2])
     render!(fig, WasmCtx()); return Int64(0)
 end
+function w005_stats()
+    fig = Figure(size = (300.0, 200.0))
+    ax = Axis(fig[1, 1])
+    stairs!(ax, [0.0, 1.0, 2.0, 3.0], [0.0, 1.0, 0.5, 0.8])
+    hist!(ax, [0.1, 0.2, 0.2, 0.3, 0.45, 0.5, 0.5, 0.55, 0.7, 0.9]; bins = 4)
+    errorbars!(ax, [0.5, 1.5], [0.5, 0.7], [0.1, 0.2]; color = :red)
+    stem!(ax, [2.2, 2.6], [0.4, 0.9])
+    density!(ax, [0.1, 0.2, 0.25, 0.3, 0.5, 0.55, 0.6, 0.9])
+    render!(fig, WasmCtx()); return Int64(0)
+end
 function w005_grid()
     fig = Figure(size = (400.0, 300.0))
     lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
@@ -1006,6 +1059,14 @@ end
                 hspan!(ax, 0.6, 0.8; color = (0.2, 0.4, 0.8, 0.3))
                 ablines!(ax, 0.0, 0.7; color = :purple)
                 linesegments!(ax, [0.2, 0.8, 1.2, 1.8], [1.4, 1.4, 0.2, 0.2])
+            end),
+            ("stats", w005_stats, (300.0, 200.0), fig -> begin
+                ax = Axis(fig[1, 1])
+                stairs!(ax, [0.0, 1.0, 2.0, 3.0], [0.0, 1.0, 0.5, 0.8])
+                hist!(ax, [0.1, 0.2, 0.2, 0.3, 0.45, 0.5, 0.5, 0.55, 0.7, 0.9]; bins = 4)
+                errorbars!(ax, [0.5, 1.5], [0.5, 0.7], [0.1, 0.2]; color = :red)
+                stem!(ax, [2.2, 2.6], [0.4, 0.9])
+                density!(ax, [0.1, 0.2, 0.25, 0.3, 0.5, 0.55, 0.6, 0.9])
             end),
             ("grid", w005_grid, (400.0, 300.0), fig -> begin
                 lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])

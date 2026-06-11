@@ -149,6 +149,25 @@ const CORPUS = Scene2[
     Scene2("recipes: scatterlines",
         fig -> WasmMakie.scatterlines!(WasmMakie.Axis(fig[1, 1]), XS, YS1; markersize = 10.0),
         (Makie, fig) -> Makie.scatterlines!(Makie.Axis(fig[1, 1]), XS, YS1; markersize = 10)),
+    Scene2("recipes: stairs pre",
+        fig -> WasmMakie.stairs!(WasmMakie.Axis(fig[1, 1]), XS, YS1),
+        (Makie, fig) -> Makie.stairs!(Makie.Axis(fig[1, 1]), XS, YS1)),
+    Scene2("recipes: hist 8 bins",
+        fig -> WasmMakie.hist!(WasmMakie.Axis(fig[1, 1]),
+                               [0.1, 0.2, 0.2, 0.3, 0.45, 0.5, 0.5, 0.55, 0.7, 0.9]; bins = 8),
+        (Makie, fig) -> Makie.hist!(Makie.Axis(fig[1, 1]),
+                                    [0.1, 0.2, 0.2, 0.3, 0.45, 0.5, 0.5, 0.55, 0.7, 0.9]; bins = 8)),
+    Scene2("recipes: stem + errorbars",
+        fig -> (ax = WasmMakie.Axis(fig[1, 1]);
+                WasmMakie.stem!(ax, [1.0, 2.0, 3.0, 4.0], [0.5, -0.3, 0.8, 0.2]);
+                WasmMakie.errorbars!(ax, [1.0, 2.0, 3.0, 4.0], [0.5, -0.3, 0.8, 0.2],
+                                     [0.15, 0.1, 0.2, 0.1]; color = :red)),
+        (Makie, fig) -> (ax = Makie.Axis(fig[1, 1]);
+                Makie.stem!(ax, [1.0, 2.0, 3.0, 4.0], [0.5, -0.3, 0.8, 0.2]);
+                Makie.errorbars!(ax, [1.0, 2.0, 3.0, 4.0], [0.5, -0.3, 0.8, 0.2],
+                                 [0.15, 0.1, 0.2, 0.1]; color = :red))),
+    # NOTE: a "recipes: density" corpus scene is deferred — Makie density!
+    # lowers to Band, which CanvasMakie draws only after the R-005 mesh path.
 ]
 
 end # module

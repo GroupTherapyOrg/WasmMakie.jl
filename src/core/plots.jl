@@ -13,6 +13,7 @@ const PLOT_HVLINES = Int64(6)
 const PLOT_HVSPAN = Int64(7)
 const PLOT_ABLINES = Int64(8)
 const PLOT_SEGMENTS = Int64(9)
+const PLOT_FILLEDCURVE = Int64(10)
 
 # linestyles in Makie's encoding (vendor/ticks of lines draw layer consume these)
 const LINESTYLE_SOLID = Int64(0)
@@ -90,6 +91,17 @@ mutable struct SegmentsPlot
     color::NTuple{4,Float64}
     linewidth::Float64
     linestyle::Int64
+    label::String
+end
+
+# filled curve down to a baseline (density!, future band!) — Poly attrs
+mutable struct FilledCurve
+    x::Vector{Float64}
+    y::Vector{Float64}
+    baseline::Float64
+    color::NTuple{4,Float64}
+    strokecolor::NTuple{4,Float64}
+    strokewidth::Float64
     label::String
 end
 

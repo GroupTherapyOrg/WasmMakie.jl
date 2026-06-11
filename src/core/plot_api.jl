@@ -266,6 +266,226 @@ function scatterlines!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:
     return l
 end
 
+"""
+    stairs!(ax, x, y; step = :pre|:post|:center, ...)
+
+Step lines (Makie stairs.jl conversion translated verbatim → lines).
+"""
+function stairs!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+                 step::Symbol = :pre, color = nothing,
+                 linewidth::Real = THEME_LINEWIDTH, linestyle::Symbol = :solid,
+                 label::String = "")
+    xs = _f64vec(x)
+    ys = _f64vec(y)
+    n = length(xs)
+    sx = Float64[]
+    sy = Float64[]
+    if n > 0
+        push!(sx, xs[1]); push!(sy, ys[1])
+        if step === :pre
+            for i in 1:(n - 1)
+                push!(sx, xs[i]); push!(sy, ys[i + 1])
+                push!(sx, xs[i + 1]); push!(sy, ys[i + 1])
+            end
+        elseif step === :post
+            for i in 1:(n - 1)
+                push!(sx, xs[i + 1]); push!(sy, ys[i])
+                push!(sx, xs[i + 1]); push!(sy, ys[i + 1])
+            end
+        else  # :center
+            for i in 1:(n - 1)
+                halfx = 0.5 * (xs[i] + xs[i + 1])
+                push!(sx, halfx); push!(sy, ys[i])
+                push!(sx, halfx); push!(sy, ys[i + 1])
+            end
+            push!(sx, xs[n]); push!(sy, ys[n])
+        end
+    end
+    return lines!(ax, sx, sy; color, linewidth, linestyle, label)
+end
+
+"""
+    hist!(ax, values; bins = 15, color = <cycle>, ...)
+
+Histogram bars (Makie hist.jl: edges = range(min, nextfloat(max), bins+1),
+right-open binning, counts; bars touch — width = bin width).
+"""
+function hist!(ax::Axis, values::AbstractVector{<:Real}; bins::Integer = 15,
+               color = nothing, label::String = "")
+    vals = _f64vec(values)
+    # Makie hist cycles :patchcolor = wong_colors(0.8) — cycle color at α 0.8
+    c = if color === nothing
+        cc = _next_cycle_color(ax)
+        (cc[1], cc[2], cc[3], 0.8)
+    else
+        _color(color)
+    end
+    lo = Inf
+    hi = -Inf
+    for v in vals
+        v < lo && (lo = v)
+        v > hi && (hi = v)
+    end
+    if lo == hi
+        lo -= 0.5
+        hi += 0.5
+    else
+        hi = nextfloat(hi)
+    end
+    nb = Int64(bins)
+    binw = (hi - lo) / Float64(nb)
+    # edge-comparison binning (right-open): division + floor mis-bins edge
+    # values by one ulp (0.2 in [0.1,0.2) at binw 0.1) — StatsBase compares
+    # against the edge values themselves
+    edges = Vector{Float64}(undef, nb + 1)
+    for k in 1:(nb + 1)
+        edges[k] = lo + (hi - lo) * Float64(k - 1) / Float64(nb)
+    end
+    counts = zeros(Float64, nb)
+    for v in vals
+        k = 1
+        while k < nb && v >= edges[k + 1]
+            k += 1
+        end
+        edges[k] <= v < edges[k + 1] && (counts[k] += 1.0)
+    end
+    centers = Vector{Float64}(undef, nb)
+    for k in 1:nb
+        centers[k] = lo + (Float64(k) - 0.5) * binw
+    end
+    push!(ax.bars, BarPlotData(centers, counts, c, 0.0,
+                               (0.0, 0.0, 0.0, 1.0), 0.0, label, binw))
+    _push_plot!(ax, PLOT_BARPLOT, Int64(length(ax.bars)))
+    return ax.bars[end]
+end
+
+"""
+    errorbars!(ax, x, y, err; ...) / rangebars!(ax, val, lo, hi; ...)
+
+Vertical error whisker segments (whiskerwidth 0 default — Makie parity).
+"""
+function errorbars!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real},
+                    err::AbstractVector{<:Real};
+                    color = nothing, linewidth::Real = THEME_LINEWIDTH,
+                    label::String = "")
+    xs = _f64vec(x); ys = _f64vec(y); es = _f64vec(err)
+    sx = Float64[]; sy = Float64[]
+    for i in eachindex(xs)
+        push!(sx, xs[i]); push!(sy, ys[i] - es[i])
+        push!(sx, xs[i]); push!(sy, ys[i] + es[i])
+    end
+    return linesegments!(ax, sx, sy; color, linewidth, label)
+end
+
+function rangebars!(ax::Axis, val::AbstractVector{<:Real}, lo::AbstractVector{<:Real},
+                    hi::AbstractVector{<:Real};
+                    color = nothing, linewidth::Real = THEME_LINEWIDTH,
+                    label::String = "")
+    vs = _f64vec(val); ls = _f64vec(lo); hs = _f64vec(hi)
+    sx = Float64[]; sy = Float64[]
+    for i in eachindex(vs)
+        push!(sx, vs[i]); push!(sy, ls[i])
+        push!(sx, vs[i]); push!(sy, hs[i])
+    end
+    return linesegments!(ax, sx, sy; color, linewidth, label)
+end
+
+"""
+    stem!(ax, x, y; offset = 0, ...)
+
+Stems from `offset` to `y` with marker heads + trunk line (Makie stem.jl).
+"""
+function stem!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+               offset::Real = 0, color = nothing, linewidth::Real = THEME_LINEWIDTH,
+               markersize::Real = THEME_MARKERSIZE, label::String = "")
+    xs = _f64vec(x); ys = _f64vec(y)
+    c = color === nothing ? _next_cycle_color(ax) : _color(color)
+    off = Float64(offset)
+    # trunk (linecolor black default upstream; we follow the stem color group)
+    lines!(ax, [minimum(xs), maximum(xs)], [off, off];
+           color = (0.0, 0.0, 0.0, 1.0), linewidth)
+    sx = Float64[]; sy = Float64[]
+    for i in eachindex(xs)
+        push!(sx, xs[i]); push!(sy, off)
+        push!(sx, xs[i]); push!(sy, ys[i])
+    end
+    linesegments!(ax, sx, sy; color = c, linewidth, label)
+    scatter!(ax, xs, ys; color = c, markersize)
+    return ax.segments[end]
+end
+
+"""
+    density!(ax, values; npoints = 200, color, strokecolor, strokewidth)
+
+Filled KDE curve (vendored Gaussian KDE: Silverman bandwidth, ±4bw
+boundary — KernelDensity.jl defaults; direct evaluation, not FFT-binned).
+"""
+function density!(ax::Axis, values::AbstractVector{<:Real}; npoints::Integer = 200,
+                  color = nothing, strokecolor = :black, strokewidth::Real = 0.0,
+                  label::String = "")
+    vals = _f64vec(values)
+    c = color === nothing ? _next_cycle_color(ax) : _color(color)
+    n = length(vals)
+    bw = _silverman_bandwidth(vals)
+    lo = minimum(vals) - 4.0 * bw
+    hi = maximum(vals) + 4.0 * bw
+    np = Int64(npoints)
+    gx = Vector{Float64}(undef, np)
+    gy = Vector{Float64}(undef, np)
+    stepw = (hi - lo) / Float64(np - 1)
+    inv2bw2 = 1.0 / (2.0 * bw * bw)
+    norm = 1.0 / (Float64(n) * bw * sqrt(2.0 * pi))
+    for k in 1:np
+        gx[k] = lo + Float64(k - 1) * stepw
+        acc = 0.0
+        for v in vals
+            d = gx[k] - v
+            acc += exp(-d * d * inv2bw2)
+        end
+        gy[k] = acc * norm
+    end
+    push!(ax.filledcurves, FilledCurve(gx, gy, 0.0, c, _color(strokecolor),
+                                       Float64(strokewidth), label))
+    _push_plot!(ax, PLOT_FILLEDCURVE, Int64(length(ax.filledcurves)))
+    return ax.filledcurves[end]
+end
+
+"Silverman's rule (KernelDensity.jl default_bandwidth, alpha 0.9)."
+function _silverman_bandwidth(vals::Vector{Float64})
+    n = length(vals)
+    n <= 1 && return 0.9
+    m = 0.0
+    for v in vals
+        m += v
+    end
+    m /= Float64(n)
+    ss = 0.0
+    for v in vals
+        ss += (v - m) * (v - m)
+    end
+    sd = sqrt(ss / Float64(n - 1))
+    q25 = _quantile7(vals, 0.25)
+    q75 = _quantile7(vals, 0.75)
+    width = min(sd, (q75 - q25) / 1.34)
+    width == 0.0 && (width = sd == 0.0 ? 1.0 : sd)
+    return 0.9 * width * Float64(n)^(-0.2)
+end
+
+"Type-7 quantile on a copy-sorted vector (matches Statistics.quantile default)."
+function _quantile7(vals::Vector{Float64}, p::Float64)
+    n = length(vals)
+    sorted = Vector{Float64}(undef, n)
+    for i in 1:n
+        sorted[i] = vals[i]
+    end
+    sort!(sorted)
+    h = (Float64(n) - 1.0) * p + 1.0
+    fl = floor(h)
+    i = Int64(fl)
+    i >= n && return sorted[n]
+    return sorted[i] + (h - fl) * (sorted[i + 1] - sorted[i])
+end
+
 # ── data limits (consumed by C-008 autolimits) ──────────────────────────
 function _extrema_finite(v::Vector{Float64})
     lo = Inf
@@ -301,4 +521,9 @@ function data_limits(p::HVSpan)
     return p.horizontal ? (Inf, -Inf, lo, hi) : (lo, hi, Inf, -Inf)
 end
 data_limits(::ABLines) = (Inf, -Inf, Inf, -Inf)   # never affects autolimits
+function data_limits(p::FilledCurve)
+    xlo, xhi = _extrema_finite(p.x)
+    ylo, yhi = _extrema_finite(p.y)
+    return (xlo, xhi, min(ylo, p.baseline), max(yhi, p.baseline))
+end
 data_limits(p::SegmentsPlot) = (_extrema_finite(p.x)..., _extrema_finite(p.y)...)

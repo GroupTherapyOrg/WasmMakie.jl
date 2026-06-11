@@ -390,6 +390,20 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
                 lws[k] = p.linewidth
             end
             draw_multi_segments!(ctx, pts, cols, lws, pattern)
+        elseif kind == PLOT_FILLEDCURVE
+            p = ax.filledcurves[idx]
+            ring = Vector{NTuple{2,Float64}}(undef, length(p.x) + 2)
+            for i in eachindex(p.x)
+                ring[i] = (px_x(t, p.x[i]), px_y(t, p.y[i]))
+            end
+            ring[length(p.x) + 1] = (px_x(t, p.x[end]), px_y(t, p.baseline))
+            ring[length(p.x) + 2] = (px_x(t, p.x[1]), px_y(t, p.baseline))
+            rings = Vector{Vector{NTuple{2,Float64}}}(undef, 1)
+            rings[1] = ring
+            draw_poly_rings!(ctx, rings,
+                             p.color[1], p.color[2], p.color[3], p.color[4],
+                             p.strokecolor[1], p.strokecolor[2], p.strokecolor[3], p.strokecolor[4],
+                             p.strokewidth, no_dash(), THEME_LINECAP, THEME_JOINSTYLE, 4.0)
         elseif kind == PLOT_HEATMAP
             p = ax.heatmaps[idx]
             nx = p.nx

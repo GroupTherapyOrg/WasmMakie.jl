@@ -49,7 +49,8 @@ function _plots_limits(ax::Axis)
             kind == PLOT_HVLINES ? data_limits(ax.hvlines[idx]) :
             kind == PLOT_HVSPAN ? data_limits(ax.hvspans[idx]) :
             kind == PLOT_ABLINES ? data_limits(ax.ablines[idx]) :
-            data_limits(ax.segments[idx])
+            kind == PLOT_SEGMENTS ? data_limits(ax.segments[idx]) :
+            data_limits(ax.filledcurves[idx])
         l[1] < xlo && (xlo = l[1])
         l[2] > xhi && (xhi = l[2])
         l[3] < ylo && (ylo = l[3])

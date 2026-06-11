@@ -72,6 +72,7 @@ mutable struct Axis
     hvspans::Vector{HVSpan}
     ablines::Vector{ABLines}
     segments::Vector{SegmentsPlot}
+    filledcurves::Vector{FilledCurve}
     plot_order::Vector{Tuple{Int64,Int64}}  # (PLOT_* kind, index)
 end
 
@@ -93,7 +94,7 @@ function Axis(; title::String = "", xlabel::String = "", ylabel::String = "",
                 false, 2, 2, 1,
                 LinesPlot[], ScatterPlot[], BarPlotData[], HeatmapPlot[],
                 ImagePlot[], HVLines[], HVSpan[], ABLines[], SegmentsPlot[],
-                Tuple{Int64,Int64}[])
+                FilledCurve[], Tuple{Int64,Int64}[])
 end
 
 """
