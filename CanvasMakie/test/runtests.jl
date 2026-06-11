@@ -147,10 +147,47 @@ end
         img5 = Makie.colorbuffer(CanvasMakie.Screen(scene5))
         @test img5[50, 50] == RGBA{N0f8}(0, 0, 1, 1)
 
-        # per-vertex colors are a loud unimplemented error (draw_multi, D-008)
+        # ── draw_multi (D-008): per-vertex colors and linewidths ──
+        # 2-point gradient line red→blue: endpoints near-pure, middle blended
         scene6 = Scene(size = (100, 100), backgroundcolor = :white, camera = campixel!)
         lines!(scene6, [10.0, 90.0], [50.0, 50.0]; color = [:red, :blue], linewidth = 8)
-        @test_throws Exception Makie.colorbuffer(CanvasMakie.Screen(scene6))
+        img6 = Makie.colorbuffer(CanvasMakie.Screen(scene6))
+        r12 = Float64(ColorTypes.red(img6[50, 12]))
+        b12 = Float64(ColorTypes.blue(img6[50, 12]))
+        r88 = Float64(ColorTypes.red(img6[50, 88]))
+        b88 = Float64(ColorTypes.blue(img6[50, 88]))
+        @test r12 > 0.9 && b12 < 0.2     # start: red
+        @test b88 > 0.9 && r88 < 0.2     # end: blue
+        rm_ = Float64(ColorTypes.red(img6[50, 50]))
+        bm_ = Float64(ColorTypes.blue(img6[50, 50]))
+        @test 0.2 < rm_ < 0.8 && 0.2 < bm_ < 0.8  # middle: blended
+
+        # per-segment colors on linesegments (equal endpoint colors → solid)
+        scene7 = Scene(size = (100, 100), backgroundcolor = :white, camera = campixel!)
+        linesegments!(scene7, [10.0, 40.0, 60.0, 90.0], [50.0, 50.0, 50.0, 50.0];
+                      color = [:red, :red, :blue, :blue], linewidth = 8)
+        img7 = Makie.colorbuffer(CanvasMakie.Screen(scene7))
+        @test img7[50, 25] == RGBA{N0f8}(1, 0, 0, 1)
+        @test img7[50, 75] == RGBA{N0f8}(0, 0, 1, 1)
+        @test img7[50, 50] == WHITE
+
+        # per-segment linewidths on linesegments (pairs must agree)
+        scene8 = Scene(size = (100, 100), backgroundcolor = :white, camera = campixel!)
+        linesegments!(scene8, [10.0, 40.0, 60.0, 90.0], [30.0, 30.0, 30.0, 30.0];
+                      color = :black, linewidth = [16.0, 16.0, 2.0, 2.0])
+        img8 = Makie.colorbuffer(CanvasMakie.Screen(scene8))
+        @test img8[64, 25] == BLACK      # thick: 7px above center still inked
+        @test img8[64, 75] == WHITE      # thin segment: not at that offset
+        @test img8[70, 75] == BLACK      # but inked on its center row
+
+        # color-change mid-polyline strokes runs + gradient bridge
+        scene9 = Scene(size = (100, 100), backgroundcolor = :white, camera = campixel!)
+        lines!(scene9, [10.0, 50.0, 90.0], [50.0, 50.0, 50.0];
+               color = [:red, :red, :blue], linewidth = 8)
+        img9 = Makie.colorbuffer(CanvasMakie.Screen(scene9))
+        @test img9[50, 25] == RGBA{N0f8}(1, 0, 0, 1)             # first run solid red
+        bm9 = Float64(ColorTypes.blue(img9[50, 85]))
+        @test bm9 > 0.8                                           # bridge end ≈ blue
     end
 end
 

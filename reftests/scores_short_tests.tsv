@@ -1,26 +1,26 @@
 # status	score	title	detail
 error	-	char marker scenespace	CanvasMakie: Char markers need glyph rendering (plan D-006)
-error	-	lines per element colors, OffsetArrays, #3704	CanvasMakie: per-vertex colors/linewidths on Lines{Tuple{Vector{Point{2, Float64}}}} not implemented yet (draw_multi; plan D-008)
 error	-	scatter rotation	CanvasMakie: Char markers need glyph rendering (plan D-006)
-error	-	contour small x or y	CanvasMakie: per-vertex colors/linewidths on Lines{Tuple{Vector{Point{2, Float32}}}} not implemented yet (draw_multi; plan D-008)
-error	-	contour levels and colors	CanvasMakie: per-vertex colors/linewidths on Lines{Tuple{Vector{Point{2, Float32}}}} not implemented yet (draw_multi; plan D-008)
-error	-	streamplot with func	CanvasMakie: per-vertex colors/linewidths on Lines{Tuple{Vector{Point{2, Float32}}}} not implemented yet (draw_multi; plan D-008)
-error	-	meshscatter colors, Axis3	CanvasMakie: per-vertex colors/linewidths on LineSegments{Tuple{Vector{Point{3, Float64}}}} not implemented yet (draw_multi; plan D-008)
-error	-	transparent mesh texture	CanvasMakie: per-vertex colors/linewidths on LineSegments{Tuple{Vector{Point{3, Float32}}}} not implemented yet (draw_multi; plan D-008)
-error	-	Unequal x and y sizes in surface	CanvasMakie: per-vertex colors/linewidths on LineSegments{Tuple{Vector{Point{3, Float32}}}} not implemented yet (draw_multi; plan D-008)
-error	-	Matrices of data in surfaces	CanvasMakie: per-vertex colors/linewidths on LineSegments{Tuple{Vector{Point{3, Float32}}}} not implemented yet (draw_multi; plan D-008)
+error	-	meshscatter colors, Axis3	CanvasMakie: draw_atomic not implemented yet for Plot
+error	-	transparent mesh texture	CanvasMakie: draw_atomic not implemented yet for Plot
+error	-	Unequal x and y sizes in surface	CanvasMakie: draw_atomic not implemented yet for Plot
+error	-	Matrices of data in surfaces	CanvasMakie: draw_atomic not implemented yet for Plot
 error	-	heatmaps & surface	CanvasMakie: draw_atomic not implemented yet for Plot
 error	-	barplot lowclip highclip nan_color	TypeError: in typeassert, expected Vector{ColorTypes.RGBA{Float32}}, got a value of type Base.RefValue{Any}
 error	-	redisplay after closing screen	StackOverflowError:
 error	-	colorbuffer for axis	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	matcap	CanvasMakie: per-vertex colors/linewidths on LineSegments{Tuple{Vector{Point{3, Float32}}}} not implemented yet (draw_multi; plan D-008)
-error	-	Axis Hints	CanvasMakie: per-vertex colors/linewidths on LineSegments{Tuple{Vector{Point{3, Float64}}}} not implemented yet (draw_multi; plan D-008)
+error	-	matcap	CanvasMakie: draw_atomic not implemented yet for Plot
 error	-	StructArrays compat	StackOverflowError:
+recorded	0.0649	contour levels and colors	
+recorded	0.0312	contour small x or y	
+recorded	0.0224	Axis Hints	
 recorded	0.0201	poly stroke & array input	
 recorded	0.0173	scatter inputs	
 recorded	0.0144	heatmap log scale, transparent colormap	
 recorded	0.0144	lines inputs	
 recorded	0.0139	space test in transformed axis	
+recorded	0.0138	lines per element colors, OffsetArrays, #3704	
+recorded	0.0108	streamplot with func	
 recorded	0.0108	multipoly with multi strokes	
 recorded	0.0107	Colorbar	
 recorded	0.0095	scene visibility	
@@ -28,4 +28,4 @@ recorded	0.0091	fast pixel marker
 recorded	0.0077	thick arc	
 recorded	0.0001	lines linesegments width test	
 recorded	0.0	Scene backgroundcolor	
-# REFPASS passed=12/29 scored=12 recorded=12 errored=17 unsupported=0 rate=0.414
+# REFPASS passed=16/29 scored=17 recorded=17 errored=12 unsupported=0 rate=0.552

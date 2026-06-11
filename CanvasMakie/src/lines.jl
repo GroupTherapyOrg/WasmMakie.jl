@@ -45,17 +45,26 @@ function draw_atomic(rctx::WasmMakie.RecordingCtx, scene::Scene,
 
     color = attr[:computed_color][]
     linewidth = attr[:linewidth][]
-    if color isa AbstractArray || linewidth isa AbstractArray
-        error("CanvasMakie: per-vertex colors/linewidths on $(PT) not implemented yet (draw_multi; plan D-008)")
-    end
     linestyle = attr[:linestyle][]
-    pattern = isnothing(linestyle) ? WasmMakie.NO_DASH :
-        WasmMakie.linestyle_to_pattern(Float64.(linestyle), Float64(linewidth))
     linecap = _cap_int(attr[:linecap][], Makie.Key{:linecap}())
     joinstyle = is_lines ? _cap_int(attr[:joinstyle][], Makie.Key{:joinstyle}()) : Int64(0)
     miter_angle = is_lines ? Float64(attr[:miter_limit][]) : 2pi / 3
     miter_limit = 2.0 * Makie.miter_angle_to_distance(miter_angle)
 
+    if color isa AbstractArray || linewidth isa AbstractArray
+        # per-vertex path (CairoMakie draw_multi): broadcast to per-point data;
+        # dash stays UNSCALED here — re-scaled by each stroke's width upstream
+        n = length(positions)
+        colors4 = NTuple{4,Float64}[_rgba4(Makie.to_color(Makie.sv_getindex(color, i))) for i in 1:n]
+        widths = Float64[Float64(Makie.sv_getindex(linewidth, i)) for i in 1:n]
+        dash = isnothing(linestyle) ? WasmMakie.NO_DASH : diff(Float64.(linestyle))
+        WasmMakie.draw_lines_multi!(rctx, positions, is_lines, colors4, widths,
+                                    dash, linecap, joinstyle, miter_limit)
+        return
+    end
+
+    pattern = isnothing(linestyle) ? WasmMakie.NO_DASH :
+        WasmMakie.linestyle_to_pattern(Float64.(linestyle), Float64(linewidth))
     WasmMakie.draw_lines!(rctx, positions, is_lines,
         Float64(ColorTypes.red(color)), Float64(ColorTypes.green(color)),
         Float64(ColorTypes.blue(color)), Float64(ColorTypes.alpha(color)),

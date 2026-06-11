@@ -91,6 +91,160 @@ function draw_single_segments!(ctx, positions::Vector{NTuple{2,Float64}})
     return nothing
 end
 
+function _set_dash_scaled!(ctx, dash::Vector{Float64}, lw::Float64)
+    isempty(dash) && return nothing
+    dash_buf_clear(ctx)
+    for d in dash
+        dash_buf_push(ctx, d * lw)
+    end
+    set_line_dash_buf(ctx)
+    return nothing
+end
+
+function _stroke_solid!(ctx, c::NTuple{4,Float64}, lw::Float64, dash::Vector{Float64})
+    set_line_width(ctx, lw)
+    _set_dash_scaled!(ctx, dash, lw)
+    set_stroke_rgba(ctx, 255.0 * c[1], 255.0 * c[2], 255.0 * c[3], c[4])
+    stroke(ctx)
+    begin_path(ctx)  # WASM-DIVERGENCE: Cairo stroke clears the path; canvas keeps it
+    return nothing
+end
+
+function _stroke_gradient!(ctx, p1::NTuple{2,Float64}, p2::NTuple{2,Float64},
+                           c1::NTuple{4,Float64}, c2::NTuple{4,Float64},
+                           lw::Float64, dash::Vector{Float64})
+    set_line_width(ctx, lw)
+    _set_dash_scaled!(ctx, dash, lw)
+    id = gradient_linear_new(ctx, p1[1], p1[2], p2[1], p2[2])
+    gradient_add_stop(ctx, id, 0.0, 255.0 * c1[1], 255.0 * c1[2], 255.0 * c1[3], c1[4])
+    gradient_add_stop(ctx, id, 1.0, 255.0 * c2[1], 255.0 * c2[2], 255.0 * c2[3], c2[4])
+    set_stroke_gradient(ctx, id)
+    stroke(ctx)
+    begin_path(ctx)
+    return nothing
+end
+
+# Translated from CairoMakie draw_multi_segments: per-pair color/width,
+# gradient stroke when the endpoints differ.
+function draw_multi_segments!(ctx, positions::Vector{NTuple{2,Float64}},
+                              colors::Vector{NTuple{4,Float64}},
+                              linewidths::Vector{Float64}, dash::Vector{Float64})
+    @assert iseven(length(positions))
+    for i in 1:2:length(positions)
+        (_isnan2(positions[i]) || _isnan2(positions[i + 1])) && continue
+        lw = linewidths[i]
+        if lw != linewidths[i + 1]
+            error("Cairo doesn't support two different line widths ($lw and $(linewidths[i + 1]) at the endpoints of a line.")
+        end
+        begin_path(ctx)
+        move_to(ctx, positions[i][1], positions[i][2])
+        line_to(ctx, positions[i + 1][1], positions[i + 1][2])
+        c1 = colors[i]
+        c2 = colors[i + 1]
+        if c1 == c2
+            _stroke_solid!(ctx, c1, lw, dash)
+        else
+            _stroke_gradient!(ctx, positions[i], positions[i + 1], c1, c2, lw, dash)
+        end
+    end
+    gradient_clear_all(ctx)
+    return nothing
+end
+
+# Translated from CairoMakie draw_multi_lines: run-stroking with per-point
+# colors; color changes stroke the previous run and bridge with a gradient
+# segment. The begin_path discipline replaces Cairo's implicit path clears.
+function draw_multi_lines!(ctx, positions::Vector{NTuple{2,Float64}},
+                           colors::Vector{NTuple{4,Float64}},
+                           linewidths::Vector{Float64}, dash::Vector{Float64})
+    isempty(positions) && return nothing
+    @assert length(colors) == length(positions)
+    @assert length(linewidths) == length(positions)
+
+    prev_color = colors[1]
+    prev_linewidth = linewidths[1]
+    prev_position = positions[1]
+    prev_nan = _isnan2(prev_position)
+    prev_continued = false
+    start = positions[1]
+
+    begin_path(ctx)
+    if !prev_nan
+        move_to(ctx, prev_position[1], prev_position[2])
+    end
+
+    for i in 2:length(positions)
+        this_position = positions[i]
+        this_color = colors[i]
+        this_nan = _isnan2(this_position)
+        this_linewidth = linewidths[i]
+        if this_nan
+            if prev_continued
+                _approx2(prev_position, start) && close_path(ctx)
+                _stroke_solid!(ctx, prev_color, this_linewidth, dash)
+            end
+        end
+        if prev_nan
+            if !this_nan
+                move_to(ctx, this_position[1], this_position[2])
+                start = this_position
+            end
+        else
+            if this_color == prev_color
+                if !this_nan
+                    this_linewidth != prev_linewidth && error("Encountered two different linewidth values $prev_linewidth and $this_linewidth in `lines` at index $(i - 1). Different linewidths in one line are only permitted in CairoMakie when separated by a NaN point.")
+                    line_to(ctx, this_position[1], this_position[2])
+                    prev_continued = true
+                    if i == length(positions)
+                        _approx2(this_position, start) && close_path(ctx)
+                        _stroke_solid!(ctx, this_color, this_linewidth, dash)
+                    end
+                end
+            else
+                prev_continued = false
+                _stroke_solid!(ctx, prev_color, prev_linewidth, dash)
+                if !this_nan
+                    this_linewidth != prev_linewidth && error("Encountered two different linewidth values $prev_linewidth and $this_linewidth in `lines` at index $(i - 1). Different linewidths in one line are only permitted in CairoMakie when separated by a NaN point.")
+                    move_to(ctx, prev_position[1], prev_position[2])
+                    line_to(ctx, this_position[1], this_position[2])
+                    _stroke_gradient!(ctx, prev_position, this_position, prev_color, this_color, this_linewidth, dash)
+                    move_to(ctx, this_position[1], this_position[2])
+                end
+            end
+        end
+        prev_nan = this_nan
+        prev_color = this_color
+        prev_linewidth = this_linewidth
+        prev_position = this_position
+    end
+    gradient_clear_all(ctx)
+    return nothing
+end
+
+"""
+    draw_lines_multi!(ctx, positions, is_lines, colors, linewidths, dash, linecap, joinstyle, miter_limit)
+
+Per-vertex colors/linewidths path (translated from CairoMakie `draw_multi`).
+`dash` is the UNSCALED diff pattern — it is re-scaled by each stroke's width,
+matching upstream. Cap/join/miter apply to all strokes.
+"""
+function draw_lines_multi!(ctx, positions::Vector{NTuple{2,Float64}}, is_lines::Bool,
+                           colors::Vector{NTuple{4,Float64}}, linewidths::Vector{Float64},
+                           dash::Vector{Float64}, linecap::Int64, joinstyle::Int64,
+                           miter_limit::Float64)
+    isempty(positions) && return nothing
+    set_line_cap(ctx, _canvas_linecap(linecap))
+    set_line_join(ctx, _canvas_joinstyle(joinstyle))
+    set_miter_limit(ctx, miter_limit)
+    isempty(dash) && set_line_dash4(ctx, 0.0, 0.0, 0.0, 0.0, Int64(0))
+    if is_lines
+        draw_multi_lines!(ctx, positions, colors, linewidths, dash)
+    else
+        draw_multi_segments!(ctx, positions, colors, linewidths, dash)
+    end
+    return nothing
+end
+
 """
     draw_lines!(ctx, positions, is_lines, r, g, b, a, linewidth, pattern, linecap, joinstyle, miter_limit)
 
