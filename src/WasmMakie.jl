@@ -42,6 +42,7 @@ module WasmMakie
 
 include("ops.jl")
 include("ctx.jl")
+include("draw/lines.jl")
 
 export CANVAS_OPS, import_specs, js_glue
 export AbstractCtx, WasmCtx, RecordingCtx, Command, to_json

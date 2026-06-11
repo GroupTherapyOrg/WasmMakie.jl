@@ -67,6 +67,10 @@ const CANVAS_OPS = CanvasOp[
     CanvasOp(:set_line_dash4, [:d1=>F, :d2=>F, :d3=>F, :d4=>F, :n=>I], I,
         "(d1, d2, d3, d4, n) => { ctx.setLineDash([d1, d2, d3, d4].slice(0, Number(n))); return 0n; }"),
     CanvasOp(:set_line_dash_offset, [:o=>F], I, "(o) => { ctx.lineDashOffset = o; return 0n; }"),
+    # buffered dash protocol for patterns longer than 4 (e.g. Makie :dashdotdot → 6)
+    CanvasOp(:dash_buf_clear, [], I, "() => { S.dash = []; return 0n; }"),
+    CanvasOp(:dash_buf_push, [:d=>F], I, "(d) => { S.dash.push(d); return 0n; }"),
+    CanvasOp(:set_line_dash_buf, [], I, "() => { ctx.setLineDash(S.dash); return 0n; }"),
 
     # ── transforms ───────────────────────────────────────────────────────
     CanvasOp(:save, [], I, "() => { ctx.save(); return 0n; }"),
@@ -208,7 +212,7 @@ function js_glue()
     return """
 function canvas2d_imports(target) {
   const ctx = (target && target.getContext) ? target.getContext('2d') : target;
-  const S = { grads: [], buf: '', img: null, imgW: 0, imgH: 0, imgI: 0,
+  const S = { grads: [], buf: '', dash: [], img: null, imgW: 0, imgH: 0, imgI: 0,
               fonts: ['sans-serif', 'serif', 'monospace'],
               font: { fam: 0, size: 10, weight: 400, italic: 0 } };
   const setFont = () => { ctx.font = (S.font.italic ? 'italic ' : '') + S.font.weight + ' ' + S.font.size + 'px ' + S.fonts[S.font.fam]; };

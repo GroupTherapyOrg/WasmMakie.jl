@@ -3,7 +3,7 @@ using WasmMakie
 
 @testset "ops table (F-002)" begin
     ops = WasmMakie.CANVAS_OPS
-    @test length(ops) == 58
+    @test length(ops) == 61
     @test allunique([op.name for op in ops])
     # Only Float64/Int64 cross the import boundary
     for op in ops
@@ -58,7 +58,7 @@ end
     write(specs_path, specs_json)
     checker = joinpath(@__DIR__, "js_glue_check.js")
     out = read(`node $checker $glue_path $specs_path`, String)
-    @test occursin("JS GLUE OK: 58 ops", out)
+    @test occursin("JS GLUE OK: 61 ops", out)
 end
 
 @testset "ctx duality (F-003)" begin
@@ -138,7 +138,7 @@ end
     @test occursin("\"arc\":[\"F64\",\"F64\",\"F64\",\"F64\",\"F64\",\"I64\"]", specs)
     @test occursin("\"begin_path\":[]", specs)
     nops = read(`node -e "console.log(Object.keys(JSON.parse(process.argv[1])).length)" $specs`, String)
-    @test strip(nops) == "58"
+    @test strip(nops) == "61"
 
     # Record a program exercising every conversion class, then replay it
     # through the REAL glue in node and assert the resulting canvas calls.

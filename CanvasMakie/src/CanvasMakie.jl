@@ -27,6 +27,7 @@ import PNGFiles
 
 include("render.jl")
 include("screen.jl")
+include("lines.jl")
 
 export Screen
 

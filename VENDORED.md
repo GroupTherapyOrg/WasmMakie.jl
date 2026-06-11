@@ -31,3 +31,5 @@ Required header in every vendored/translated file:
 | file here | source | kind |
 |---|---|---|
 | `reftests/scorer.jl` | Makie.jl master `ReferenceTests/src/compare_media.jl` (compare_images verbatim; loading/dir-scoring adapted — stills only, PNGFiles) | tooling |
+| `src/draw/lines.jl` | CairoMakie v0.15.11 `src/lines.jl` (draw_single_lines/draw_single_segments/draw_lineplot single-color branch) + `src/utils.jl` (to_cairo_linestyle/linecap/joinstyle) — Cairo→Canvas2D; explicit begin_path per run (canvas stroke keeps paths); draw_multi NOT yet translated | draw layer |
+| `CanvasMakie/src/lines.jl` | CairoMakie v0.15.11 `src/lines.jl` (draw_atomic extraction + add_projected_line_points! clipspace stage) — clip planes NOT yet applied | adapter |
