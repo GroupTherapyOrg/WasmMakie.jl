@@ -27,6 +27,8 @@ struct GlyphExtent
     right::Float64        # actualBoundingBoxRight (ink, right of origin)
     font_ascent::Float64  # fontBoundingBoxAscent — FreeType ascender analog
     font_descent::Float64 # fontBoundingBoxDescent — −descender analog
+    font_height::Float64  # FreeType height/units_per_EM (Makie lineheight base);
+                          # measured mode approximates with ascent+descent
 end
 
 "Reference pixel size glyphs are measured at (metrics scale linearly)."
@@ -72,7 +74,8 @@ function glyph_extent!(p::ExtentProvider, ctx, cp::Int64, fam::Int64,
     fd = measure_text_buf_font_descent(ctx)
     g = GlyphExtent(w / EXTENT_REF_SIZE, a / EXTENT_REF_SIZE, d / EXTENT_REF_SIZE,
                     l / EXTENT_REF_SIZE, r / EXTENT_REF_SIZE,
-                    fa / EXTENT_REF_SIZE, fd / EXTENT_REF_SIZE)
+                    fa / EXTENT_REF_SIZE, fd / EXTENT_REF_SIZE,
+                    (fa + fd) / EXTENT_REF_SIZE)
     push!(p.keys, key)
     push!(p.extents, g)
     return g

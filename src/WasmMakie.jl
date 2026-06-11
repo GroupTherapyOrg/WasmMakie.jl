@@ -60,6 +60,7 @@ include("vendor/colormap_viridis.jl")
 include("vendor/colors.jl")
 include("core/text_extents.jl")
 include("vendor/text_layouting.jl")
+include("vendor/font_metrics.jl")
 include("core/axis.jl")
 include("core/render.jl")
 
@@ -69,5 +70,6 @@ export Figure, Axis, GridPosition, cycle_color
 export lines!, scatter!, barplot!, heatmap!, image!, render!
 export GlyphExtent, ExtentProvider, glyph_extent!, text_advance!, string_extent!
 export GlyphCollection, glyph_collection!, halign2num, valign2num
+export TableExtents
 
 end # module

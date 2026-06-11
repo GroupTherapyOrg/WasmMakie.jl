@@ -1073,6 +1073,96 @@ end
     @test strip(counts) == "8"
 end
 
+# T-004 wasm kernel: deterministic-table layout, pure compute (no imports)
+function k_t004_table_layout()
+    t = TableExtents()
+    ctx = WasmCtx()
+    # "−1.5×10\nHi" — mixed charset incl. the non-ASCII tick glyphs
+    cps = Int64[0x2212, 49, 46, 53, 0x00D7, 49, 48, 10, 72, 105]
+    gc = glyph_collection!(t, ctx, cps, Int64(0), Int64(400), Int64(0),
+                           14.0, 0.5, 1.0, 1.0, -1.0, 0.3, 0.0)
+    s = 0.0
+    for i in eachindex(gc.origins_x)
+        s += gc.origins_x[i] * Float64(i) + gc.origins_y[i]
+    end
+    return Int64(round(1.0e6 * s))
+end
+
+@testset "deterministic metric tables (T-004)" begin
+    # table shape + face-level values straight from FreeType
+    @test length(WasmMakie.GLYPH_METRICS) == 5 * WasmMakie.METRIC_NCPS
+    @test length(WasmMakie.FACE_METRICS) == 5
+    @test WasmMakie.FACE_METRICS[1] == (0.947, 0.218, 1.165)  # TGH (= axis TEXT_HEIGHT_RATIO)
+
+    t = TableExtents()
+    r = RecordingCtx()
+    # 'M' in TGH Regular: Helvetica-metric advance, no ctx traffic
+    gM = glyph_extent!(t, r, Int64(77), Int64(0), Int64(400), Int64(0))
+    @test gM.hadvance ≈ 0.833
+    @test isempty(r.commands)   # tables are pure — no measure ops recorded
+    @test gM.font_height ≈ 1.165
+
+    # tabular figures: all ten digits share one advance (tick alignment)
+    d0 = glyph_extent!(t, r, Int64('0'), Int64(0), Int64(400), Int64(0)).hadvance
+    for c in '1':'9'
+        @test glyph_extent!(t, r, Int64(c), Int64(0), Int64(400), Int64(0)).hadvance == d0
+    end
+
+    # bold face differs from regular (block-level: M advance is identical in
+    # Helvetica metrics, but ink bounds differ), DejaVu fam differs
+    n97 = WasmMakie.METRIC_NCPS
+    @test WasmMakie.GLYPH_METRICS[1:n97] != WasmMakie.GLYPH_METRICS[(n97 + 1):(2n97)]
+    gMb = glyph_extent!(t, r, Int64(77), Int64(0), Int64(700), Int64(0))
+    @test (gMb.left, gMb.right) != (gM.left, gM.right)
+    gMd = glyph_extent!(t, r, Int64(77), Int64(1), Int64(400), Int64(0))
+    @test gMd.hadvance != gM.hadvance
+    gq = glyph_extent!(t, r, Int64(0x4E2D), Int64(0), Int64(400), Int64(0))
+    @test gq.hadvance == glyph_extent!(t, r, Int64('?'), Int64(0), Int64(400), Int64(0)).hadvance
+
+    # the tick-label glyphs are real entries (− and ×), not fallbacks
+    gminus = glyph_extent!(t, r, Int64(0x2212), Int64(0), Int64(400), Int64(0))
+    @test gminus.hadvance > 0.3 && gminus.hadvance != gq.hadvance
+
+    # THE T-004 GATE: table-driven layout is BIT-IDENTICAL native vs wasm
+    native = k_t004_table_layout()
+    @test native != 0
+    bytes = compile_with_canvas(Any[(k_t004_table_layout, (), "k")])
+    dir = mktempdir()
+    wp = joinpath(dir, "k.wasm"); write(wp, bytes)
+    runner = joinpath(dir, "run.js")
+    write(runner, """
+    const fs = require('fs');
+    WebAssembly.instantiate(fs.readFileSync(process.argv[2]),
+        {canvas2d: new Proxy({}, {get: () => () => 0n}), Math: {pow: Math.pow}}).then(m => {
+      console.log('RESULT ' + m.instance.exports.k());
+    }).catch(e => console.log('FAIL ' + e));
+    """)
+    out = strip(read(`node $runner $wp`, String))
+    @test out == "RESULT $native"
+
+    # browser cross-check: the table predicts REAL rendered ink — 'H' at 64px,
+    # probe the crossbar center the TABLE computes
+    rr = RecordingCtx()
+    WasmMakie.set_fill_rgba(rr, 255.0, 255.0, 255.0, 1.0)
+    WasmMakie.fill_rect(rr, 0.0, 0.0, 120.0, 80.0)
+    WasmMakie.set_fill_rgba(rr, 0.0, 0.0, 0.0, 1.0)
+    WasmMakie.set_font(rr, Int64(0), 64.0, Int64(400), Int64(0))
+    WasmMakie.text_buf_clear(rr)
+    WasmMakie.text_buf_push(rr, Int64('H'))
+    WasmMakie.fill_text_buf(rr, 10.0, 70.0)
+    gH = glyph_extent!(t, rr, Int64('H'), Int64(0), Int64(400), Int64(0))
+    px = 10 + round(Int, 0.5 * (gH.right - gH.left) * 64)   # ink center x (left is −leftinkbound)
+    py = 70 - round(Int, 0.5 * gH.ascent * 64)              # crossbar y
+    res = render_commands(to_json(rr); width = 120, height = 80,
+                          probes = [(px, py), (110, 10)])
+    if res === nothing
+        @test_skip "playwright unavailable"
+    else
+        @test res.pixels[(px, py)][1] < 128       # crossbar ink where the table says
+        @test res.pixels[(110, 10)] == (255, 255, 255, 255)
+    end
+end
+
 @testset "vendored optimize_ticks sanity (C-002)" begin
     ticks, lo, hi = WasmMakie.optimize_ticks(0.0, 10.0)
     @test ticks == [0.0, 5.0, 10.0]

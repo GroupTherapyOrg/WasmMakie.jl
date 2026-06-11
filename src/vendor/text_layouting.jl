@@ -45,7 +45,7 @@ Verbatim-structure translation of Makie `glyph_collection`. `halign` ∈ 0..1,
 (automatic → follows halign), `rotation` in radians, `word_wrap_width` ≤ 0
 disables wrapping.
 """
-function glyph_collection!(p::ExtentProvider, ctx, cps::Vector{Int64},
+function glyph_collection!(p, ctx, cps::Vector{Int64},
                            fam::Int64, weight::Int64, italic::Int64,
                            fontscale_px::Float64, halign::Float64, valign::Float64,
                            lineheight_factor::Float64, justification::Float64,
@@ -70,7 +70,7 @@ function glyph_collection!(p::ExtentProvider, ctx, cps::Vector{Int64},
         ascenders[i] = g.font_ascent * scale
         descenders[i] = -g.font_descent * scale
         # upstream: font.height / units_per_EM * lineheight_factor * scale
-        lineheights[i] = (g.font_ascent + g.font_descent) * lineheight_factor * scale
+        lineheights[i] = g.font_height * lineheight_factor * scale
     end
 
     # split into lines after every \n (upstream loop, views → ranges)
