@@ -69,6 +69,13 @@ function ge(e::EdgeInteger, x)
     end
 end
 
+# WTGAP(pending, W-003) — three WasmTarget runtime traps worked around below,
+# behavior pinned by the locateticks oracle tests:
+#   (a) range broadcasts `(low:high) .* step .+ x` trap → explicit loops
+#   (b) round(x; digits=d) traps → _round_digits
+#   (c) log10./abs./diff broadcast chain traps → explicit loop
+_round_digits(x::Float64, d::Int) = (s = 10.0^d; round(x * s) / s)
+
 function locateticks(vmin, vmax, n_ideal::Int, _integer::Bool = false, _min_n_ticks::Int = 2)
     @assert isfinite(vmin)
     @assert isfinite(vmax)
@@ -95,7 +102,7 @@ function locateticks(vmin, vmax, n_ideal::Int, _integer::Bool = false, _min_n_ti
     istep = findfirst(1:length(steps)) do i
         @inbounds return steps[i] >= raw_step
     end
-    ticks = 1.0:0.1:0.0
+    ticks = Float64[]
     for istep in istep:-1:1
         step = steps[istep]
 
@@ -107,7 +114,12 @@ function locateticks(vmin, vmax, n_ideal::Int, _integer::Bool = false, _min_n_ti
         edge = EdgeInteger(step, offset)
         low = le(edge, _vmin - best_vmin)
         high = ge(edge, _vmax - best_vmin)
-        ticks = (low:high) .* step .+ best_vmin
+        ticks = Float64[]  # WTGAP(a): was (low:high) .* step .+ best_vmin
+        # WTGAP(d): Float64 unit-range iteration traps in wasm; le/ge return
+        # whole numbers by contract, so loop over Ints
+        for ii in round(Int, low):round(Int, high)
+            push!(ticks, ii * step + best_vmin)
+        end
 
         nticks = 0
         for t in ticks
@@ -121,9 +133,22 @@ function locateticks(vmin, vmax, n_ideal::Int, _integer::Bool = false, _min_n_ti
         end
     end
 
-    ticks = ticks .+ offset
+    for i in eachindex(ticks)
+        ticks[i] += offset
+    end
     vals = filter(x -> vmin <= x <= vmax, ticks)
 
-    exponent = floor(Int, minimum(log10.(abs.(diff(vals)))))
-    return round.(vals, digits = max(0, -exponent + 1))
+    # WTGAP(c): explicit loop replaces floor(Int, minimum(log10.(abs.(diff(vals)))))
+    minlog = Inf
+    for i in 1:(length(vals) - 1)
+        l = log10(abs(vals[i + 1] - vals[i]))
+        l < minlog && (minlog = l)
+    end
+    exponent = floor(Int, minlog)
+    d = max(0, -exponent + 1)
+    out = Vector{Float64}(undef, length(vals))
+    for i in eachindex(vals)
+        out[i] = _round_digits(vals[i], d)  # WTGAP(b)
+    end
+    return out
 end
