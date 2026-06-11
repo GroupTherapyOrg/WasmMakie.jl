@@ -16,8 +16,52 @@ target constraints (no ccall, closed-world types) and are marked inline with `# 
 | ColorSchemes | — | `~/.julia/packages/ColorSchemes/3BWhh` |
 | Showoff | — | `~/.julia/packages/Showoff/ZtTt9` |
 
-Re-pinning is a deliberate act (plan story U-005): re-vendor with diff review, bump the
-reference-image tarball, re-run all parity suites.
+Re-pinning is a deliberate act — the full policy below (plan story U-005).
+
+## Re-pinning policy (U-005)
+
+Tracking Makie is a **batch, reviewed operation** — never a drive-by version bump. One
+re-pin = one PR that moves EVERY pinned package together to a mutually consistent set
+(Makie + CairoMakie + GridLayoutBase + PlotUtils + GeometryBasics resolve together; mixed
+pins are how silent layout drift happens).
+
+**When to re-pin**
+- A Makie minor release lands that U-003 upstreaming needs, or that fixes/changes
+  rendering behavior our corpora encode.
+- Security/correctness fixes in any pinned package.
+- NOT for every patch release — the pin buys deterministic parity; churn costs a full
+  re-review.
+
+**ComputePipeline watch (standing item)**: Makie is migrating attribute computation to
+ComputePipeline (the `attr[:positions_transformed_f32c]`-style computed-graph reads our
+CanvasMakie adapters depend on; 0.24 began it, 0.25 expands it). When a re-pin crosses a
+ComputePipeline version bump, re-vendor the CanvasMakie adapters WHOLESALE from the
+matching CairoMakie tag rather than patching — the attribute access patterns are
+backend-contract surface, and CairoMakie's same-version source is the only ground truth
+(per the copy-from-reference rule: verbatim first, diverge only for target constraints).
+
+**Process (in order)**
+1. Resolve the new version set in `CanvasMakie/test` (the host-oracle env) and record the
+   new depot slugs in the table above.
+2. For every ledger row below: `diff` the OLD depot copy against the NEW one for the
+   source path, then port the upstream delta into our copy — preserving every
+   `# WASM-DIVERGENCE:` marker and the verbatim-translation structure. A row with no
+   upstream diff is untouched. Update the row's version reference.
+3. Regenerate generated vendors: `reftests/gen_font_metrics.jl` (if fonts or
+   FreeTypeAbstraction changed), the viridis table (if colorsampler changed).
+4. Bump the reference images: replace `reftests/reference_images/reference_images.tar`
+   with the recorded refimages for the NEW Makie tag (Makie ReferenceTests release
+   artifacts), re-extract, and re-score.
+5. Re-run ALL gates, ratchet rule in force (each metric must hold or improve, else the
+   re-pin is blocked until the regression is understood):
+   - `julia +1.12 --project=test test/runtests.jl` (suite incl. C-002 subprocess oracle,
+     W-002/W-005 wasm diffpass 14/14 EQUAL)
+   - `julia +1.12 --project=CanvasMakie/test reftests/run_core_corpus.jl` (32/32)
+   - `reftests/run_refsuite.jl short_tests primitives figures_and_makielayout examples2d`
+     (host_refpass ≥ current %)
+   - `reftests/run_budgets.jl` (size/compile/redraw budgets)
+6. Single conventional commit: `feat: re-pin Makie <old> → <new> (re-vendor batch)` with
+   the per-row delta summary in the body; CHANGELOG entry lands via release-please.
 
 ## Ledger
 
