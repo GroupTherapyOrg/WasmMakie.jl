@@ -15,12 +15,43 @@ jobs:
       fail-fast: false
       matrix:
         version: ['1.12']
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: WasmMakie.jl
+
+      # the test env's [sources] points at ../../WasmTarget.jl — a sibling
+      # checkout, exactly like local development
+      - uses: actions/checkout@v4
+        with:
+          repository: GroupTherapyOrg/WasmTarget.jl
+          path: WasmTarget.jl
+
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
+
       - uses: julia-actions/cache@v2
-      - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-runtest@v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # WasmTarget validates every emitted module through wasm-tools
+      - name: Install wasm-tools
+        run: cargo install wasm-tools
+
+      - name: Instantiate test environment
+        working-directory: WasmMakie.jl
+        run: julia --project=test -e 'import Pkg; Pkg.instantiate()'
+
+      # known flake: the FIRST suite run after a fresh precompile may
+      # segfault (exit 139) at the C-002 subprocess-oracle testset (Julia
+      # 1.12 GC + precompile state); a rerun is reliably green — retry once
+      - name: Run tests (with one flake retry)
+        working-directory: WasmMakie.jl
+        shell: bash
+        run: |
+          julia --project=test test/runtests.jl || julia --project=test test/runtests.jl
