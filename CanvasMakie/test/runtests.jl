@@ -285,3 +285,80 @@ end
         end
     end
 end
+
+@testset "poly + walk semantics (D-005)" begin
+    if !HAVE_RENDERER
+        @test_skip "headless renderer unavailable"
+    else
+        WHITE = RGBA{N0f8}(1, 1, 1, 1)
+        RED = RGBA{N0f8}(1, 0, 0, 1)
+        BLUE = RGBA{N0f8}(0, 0, 1, 1)
+        GREEN = RGBA{N0f8}(0, N0f8(0.502), 0, 1)  # CSS :green is half-intensity
+        pxscene() = Scene(size = (100, 100), backgroundcolor = :white, camera = campixel!)
+        shot(scene) = Makie.colorbuffer(CanvasMakie.Screen(scene))
+
+        # triangle from points: fill + white outside
+        s1 = pxscene()
+        poly!(s1, Makie.Point2f[(10, 10), (90, 10), (50, 90)]; color = :red)
+        img1 = shot(s1)
+        @test img1[80, 50] == RED            # low center (y=20)
+        @test img1[40, 50] == RED            # mid (y=60 inside)
+        @test img1[80, 12] == WHITE          # outside left of base
+        @test img1[15, 15] == WHITE          # top corner outside
+
+        # Rect2 poly with stroke
+        s2 = pxscene()
+        poly!(s2, Makie.Rect2f(20, 20, 60, 40); color = :blue, strokecolor = :red,
+              strokewidth = 4)
+        img2 = shot(s2)
+        @test img2[50, 50] == BLUE           # inside (data y≈50 → row 50)
+        @test img2[40, 22] == RED            # left stroke edge (x=20±2)
+        @test img2[40, 10] == WHITE          # outside
+
+        # vector of rects with per-element colors (hist/barplot pattern)
+        s3 = pxscene()
+        poly!(s3, [Makie.Rect2f(10, 10, 20, 80), Makie.Rect2f(60, 10, 20, 80)];
+              color = [:red, :green])
+        img3 = shot(s3)
+        @test img3[50, 20] == RED
+        @test img3[50, 70] == GREEN
+        @test img3[50, 45] == WHITE          # gap between bars
+
+        # polygon with a hole (even-odd): hole shows background
+        s4 = pxscene()
+        outer = Makie.Point2f[(10, 10), (90, 10), (90, 90), (10, 90)]
+        hole = Makie.Point2f[(40, 40), (60, 40), (60, 60), (40, 60)]
+        poly!(s4, Makie.GeometryBasics.Polygon(outer, [hole]); color = :blue)
+        img4 = shot(s4)
+        @test img4[80, 20] == BLUE           # solid region
+        @test img4[50, 50] == WHITE          # the hole
+        @test img4[20, 80] == BLUE
+
+        # z-order: a later-translated plot draws beneath (zvalue2d sort)
+        s5 = pxscene()
+        p_top = poly!(s5, Makie.Rect2f(20, 20, 60, 60); color = :red)
+        p_bot = poly!(s5, Makie.Rect2f(20, 20, 60, 60); color = :blue)
+        translate!(p_bot, 0, 0, -1)          # below despite being added later
+        img5 = shot(s5)
+        @test img5[50, 50] == RED
+
+        # visible = false plots are skipped
+        s6 = pxscene()
+        p6 = poly!(s6, Makie.Rect2f(20, 20, 60, 60); color = :red, visible = false)
+        img6 = shot(s6)
+        @test img6[50, 50] == WHITE
+
+        # circle poly
+        s7 = pxscene()
+        poly!(s7, Makie.Circle(Makie.Point2f(50, 50), 25.0f0); color = :green)
+        img7 = shot(s7)
+        @test img7[50, 50] == GREEN
+        @test img7[50, 30] == GREEN          # r=20 < 25
+        @test img7[20, 20] == WHITE          # corner outside
+
+        # band needs mesh (R-005): loud error, not a blank
+        s8 = pxscene()
+        band!(s8, [10.0, 90.0], [20.0, 20.0], [60.0, 60.0])
+        @test_throws Exception shot(s8)
+    end
+end

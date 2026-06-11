@@ -87,10 +87,11 @@ function __init__()
 end
 
 # ── scene drawing ────────────────────────────────────────────────────────
-# Mirrors CairoMakie's plot-primitives.jl walk. D-001 scope: backgrounds and
-# the z-sorted atomic-plot walk skeleton; draw_atomic methods land per plot
-# type from D-002 on — an unimplemented atomic plot is a hard error, never a
-# silent skip.
+# The walk is translated from CairoMakie's plot-primitives.jl `cairo_draw`:
+# collect plots with the backend's atomicity override (Poly stays whole),
+# z-sort, honor visibility up the parent chain, and re-prepare (translate +
+# viewport clip) whenever the parent scene changes. Unimplemented plot types
+# are a hard error, never a silent skip.
 
 function render_scene_png(screen::Screen)
     scene = screen.scene
@@ -99,19 +100,79 @@ function render_scene_png(screen::Screen)
     ppu = screen.config.px_per_unit
     WasmMakie.save(rctx)
     WasmMakie.scale_xy(rctx, ppu, ppu)
-    draw_scene!(rctx, scene, Float64(size(scene)[2]))
+    canvas_draw(rctx, scene)
     WasmMakie.restore(rctx)
     return commands_to_png(rctx, w, h)
 end
 
-function draw_scene!(rctx::WasmMakie.RecordingCtx, scene::Scene, root_h::Float64)
-    draw_background!(rctx, scene, root_h)
-    plots = Makie.collect_atomic_plots(scene)
-    for p in plots
-        draw_atomic(rctx, scene, p)
+"""
+    is_canvasmakie_atomic_plot(plot)::Bool
+
+Which plots the walk treats as units (mirrors `is_cairomakie_atomic_plot`):
+atomics, plus Poly — drawn as paths instead of decomposing to mesh + lines.
+"""
+is_canvasmakie_atomic_plot(plot::Makie.Plot) = Makie.is_atomic_plot(plot)
+is_canvasmakie_atomic_plot(::Makie.Poly) = true
+
+# Translated from CairoMakie check_parent_plots: visibility up the chain.
+function check_parent_plots(f, plot::Makie.Plot)
+    if f(plot)
+        return check_parent_plots(f, Makie.parent(plot))
+    else
+        return false
     end
+end
+check_parent_plots(f, scene::Scene) = true
+
+# Translated from CairoMakie prepare_for_scene: translate into the scene's
+# frame (y measured from the top — canvas is y-down) and clip to its viewport.
+function prepare_for_scene!(rctx::WasmMakie.RecordingCtx, scene::Scene)
+    root_area_height = Makie.widths(Makie.viewport(Makie.root(scene))[])[2]
+    scene_area = Makie.viewport(scene)[]
+    scene_height = Makie.widths(scene_area)[2]
+    scene_x_origin, scene_y_origin = scene_area.origin
+    top_offset = root_area_height - scene_height - scene_y_origin
+    WasmMakie.translate(rctx, Float64(scene_x_origin), Float64(top_offset))
+    WasmMakie.begin_path(rctx)
+    WasmMakie.rect(rctx, 0.0, 0.0, Float64.(Makie.widths(scene_area))...)
+    WasmMakie.clip_nonzero(rctx)
     return
 end
+
+# Translated from CairoMakie cairo_draw (rasterize path dropped — image-only).
+function canvas_draw(rctx::WasmMakie.RecordingCtx, scene::Scene)
+    WasmMakie.save(rctx)
+    draw_background!(rctx, scene, Float64(size(scene)[2]))
+
+    allplots = Makie.collect_atomic_plots(scene; is_atomic_plot = is_canvasmakie_atomic_plot)
+    sort!(allplots; by = Makie.zvalue2d)
+
+    last_scene = scene
+    WasmMakie.save(rctx)
+    for p in allplots
+        check_parent_plots(p) do plot
+            Makie.to_value(get(plot, :visible, true))
+        end || continue
+        pparent = Makie.parent_scene(p)::Scene
+        pparent.visible[]::Bool || continue
+        if pparent != last_scene
+            WasmMakie.restore(rctx)
+            WasmMakie.save(rctx)
+            prepare_for_scene!(rctx, pparent)
+            last_scene = pparent
+        end
+        WasmMakie.save(rctx)
+        draw_plot(rctx, pparent, p)
+        WasmMakie.restore(rctx)
+    end
+    WasmMakie.restore(rctx)
+    WasmMakie.restore(rctx)
+    return
+end
+
+# Default: atomic plots dispatch to their draw_atomic; overrides (Poly) hook here.
+draw_plot(rctx::WasmMakie.RecordingCtx, scene::Scene, plot::Makie.AbstractPlot) =
+    draw_atomic(rctx, scene, plot)
 
 # Per-plot-type methods are added from D-002 on; anything unimplemented is loud.
 draw_atomic(::WasmMakie.RecordingCtx, ::Scene, plot::Makie.AbstractPlot) =

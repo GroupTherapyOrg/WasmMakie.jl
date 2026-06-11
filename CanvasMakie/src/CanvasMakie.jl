@@ -30,6 +30,7 @@ include("screen.jl")
 include("lines.jl")
 include("scatter.jl")
 include("image.jl")
+include("poly.jl")
 
 export Screen
 
