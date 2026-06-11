@@ -50,6 +50,11 @@ mutable struct Axis
     rightspinevisible::Bool
     topspinevisible::Bool
     bottomspinevisible::Bool
+    # L-002 legend state (axislegend) — drawn inside the axis viewport
+    legend_active::Bool
+    legend_halign::Int64      # 0 left, 1 center, 2 right
+    legend_valign::Int64      # 0 bottom, 1 center, 2 top
+    legend_nbanks::Int64
     # typed plot containers (closed-world: one concrete vector per kind,
     # types defined in plots.jl which is included before this file) + order
     lines::Vector{LinesPlot}
@@ -74,8 +79,28 @@ function Axis(; title::String = "", xlabel::String = "", ylabel::String = "",
                 2, 2,
                 true, true, true, true,
                 true, true, true, true,
+                false, 2, 2, 1,
                 LinesPlot[], ScatterPlot[], BarPlotData[], HeatmapPlot[],
                 ImagePlot[], Tuple{Int64,Int64}[])
+end
+
+"""
+    axislegend(ax; position = :rt, nbanks = 1)
+
+Add a legend inside the axis (Makie parity): entries are the axis plots with
+nonempty `label`s, in plot order. `position` is the 2-letter halign/valign
+symbol (`:lt`, `:rt`, `:lb`, `:rb`, `:ct`, …).
+"""
+function axislegend(ax::Axis; position::Symbol = :rt, nbanks::Integer = 1)
+    # WTGAP: string(::Symbol) + char indexing trap in wasm — direct Symbol
+    # comparisons over the 9 two-letter positions instead
+    ax.legend_halign = (position === :lt || position === :lc || position === :lb) ? Int64(0) :
+                       (position === :ct || position === :cc || position === :cb) ? Int64(1) : Int64(2)
+    ax.legend_valign = (position === :lb || position === :cb || position === :rb) ? Int64(0) :
+                       (position === :lc || position === :cc || position === :rc) ? Int64(1) : Int64(2)
+    ax.legend_nbanks = Int64(nbanks)
+    ax.legend_active = true
+    return ax
 end
 
 """

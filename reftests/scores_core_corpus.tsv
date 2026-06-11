@@ -5,6 +5,7 @@
 0.7437	core: heatmap viridis
 0.5609	core: 2x2 grid
 0.233	core: titles and labels
+0.1736	legend: axislegend rt
 0.1547	axis: minorgrid + bold title + subtitle
 0.1179	core: single line
 0.1179	core: two lines cycle
@@ -14,4 +15,4 @@
 0.1179	core: scatter sized rect
 0.1179	core: lines + scatter
 0.0	axis: hidden decorations + spines
-# CORE_PARITY passed=10/15 @ tier 0.30 (T-005-tightened; text scenes ~0.15)
+# CORE_PARITY passed=11/16 @ tier 0.30 (T-005-tightened; text scenes ~0.15)

@@ -648,6 +648,34 @@ end
     @test any(c -> c.op === :set_font && c.iargs[2] == 700, r2.commands)
 end
 
+@testset "axislegend (L-002)" begin
+    fig = Figure(size = (300, 200))
+    ax = Axis(fig[1, 1])
+    lines!(ax, [0.0, 1.0], [0.0, 1.0]; label = "a")
+    scatter!(ax, [0.5], [0.5]; label = "b")
+    barplot!(ax, [1.0], [1.0])           # unlabeled — excluded
+    @test !ax.legend_active
+    axislegend(ax; position = :lb, nbanks = 2)
+    @test ax.legend_active && ax.legend_halign == 0 && ax.legend_valign == 0
+    @test ax.legend_nbanks == 2
+    r = RecordingCtx(); render!(fig, r)
+    # legend frame stroke + two label texts drawn after the plots
+    texts = count(c -> c.op === :fill_text_buf, r.commands)
+    @test texts >= 2   # tick labels + 2 legend labels
+    # no labels -> no legend even when active
+    fig2 = Figure(size = (300, 200))
+    ax2 = Axis(fig2[1, 1])
+    lines!(ax2, [0.0, 1.0], [0.0, 1.0])
+    axislegend(ax2)
+    r2 = RecordingCtx(); render!(fig2, r2)
+    rn = RecordingCtx()
+    fig3 = Figure(size = (300, 200))
+    ax3 = Axis(fig3[1, 1])
+    lines!(ax3, [0.0, 1.0], [0.0, 1.0])
+    render!(fig3, rn)
+    @test length(r2.commands) == length(rn.commands)   # legend was a no-op
+end
+
 @testset "static-core render pipeline (C-009)" begin
     fig = Figure(size = (300, 200))
     ax = Axis(fig[1, 1]; title = "T", xlabel = "x", ylabel = "y")
@@ -803,6 +831,14 @@ function w005_image()
     image!(ax, (0.0, 2.0), (0.0, 2.0), px, Int64(2), Int64(2); interpolate = false)
     render!(fig, WasmCtx()); return Int64(0)
 end
+function w005_legend()
+    fig = Figure(size = (300.0, 200.0))
+    ax = Axis(fig[1, 1])
+    lines!(ax, [0.0, 1.0, 2.0], [0.5, 1.5, 1.0]; label = "one")
+    scatter!(ax, [0.5, 1.5], [1.2, 0.8]; label = "two", color = :red, markersize = 10.0)
+    axislegend(ax)
+    render!(fig, WasmCtx()); return Int64(0)
+end
 function w005_grid()
     fig = Figure(size = (400.0, 300.0))
     lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
@@ -835,6 +871,12 @@ end
                                        (0.0, 1.0, 0.0, 1.0), (1.0, 1.0, 0.0, 1.0)]
                 image!(Axis(fig[1, 1]), (0.0, 2.0), (0.0, 2.0), px, Int64(2), Int64(2);
                        interpolate = false)
+            end),
+            ("legend", w005_legend, (300.0, 200.0), fig -> begin
+                ax = Axis(fig[1, 1])
+                lines!(ax, [0.0, 1.0, 2.0], [0.5, 1.5, 1.0]; label = "one")
+                scatter!(ax, [0.5, 1.5], [1.2, 0.8]; label = "two", color = :red, markersize = 10.0)
+                axislegend(ax)
             end),
             ("grid", w005_grid, (400.0, 300.0), fig -> begin
                 lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])

@@ -286,5 +286,128 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
         _text!(ctx, ax.ylabel, 0.0, 0.0, ax.ylabelsize, Int64(1), Int64(2), THEME_TEXTCOLOR)
         restore(ctx)
     end
+
+    ax.legend_active && _draw_legend!(ctx, ax, irect)
+    return nothing
+end
+
+# ── L-002: axislegend (Makie @Block Legend defaults: padding 6, margin 6,
+# patchsize 20×20, patchlabelgap 5, rowgap 3, colgap 16, frame black w1,
+# white background; swatches use the plot's own attributes) ────────────────
+const LEGEND_PAD = 6.0
+const LEGEND_MARGIN = 6.0
+const LEGEND_PATCH = 20.0
+const LEGEND_PATCHLABELGAP = 5.0
+const LEGEND_ROWGAP = 3.0
+const LEGEND_COLGAP = 16.0
+
+function _draw_legend!(ctx, ax::Axis, irect::Rect2)
+    # entries in plot order: (kind, idx) with nonempty labels
+    kinds = Int64[]
+    idxs = Int64[]
+    labels = String[]
+    for (kind, idx) in ax.plot_order
+        lab = kind == PLOT_LINES ? ax.lines[idx].label :
+              kind == PLOT_SCATTER ? ax.scatters[idx].label :
+              kind == PLOT_BARPLOT ? ax.bars[idx].label : ""
+        if !isempty(lab)
+            push!(kinds, kind)
+            push!(idxs, idx)
+            push!(labels, lab)
+        end
+    end
+    n = length(labels)
+    n == 0 && return nothing
+
+    lsize = THEME_FONTSIZE
+    nbanks = ax.legend_nbanks < 1 ? Int64(1) : ax.legend_nbanks
+    nrows = Int64(cld(n, nbanks))
+
+    # per-bank widths from table-metric label advances
+    t = TableExtents()
+    bankw = Float64[]
+    for b in 1:nbanks
+        w = 0.0
+        for r in 1:nrows
+            i = (b - 1) * nrows + r
+            i <= n || continue
+            lw = 0.0
+            for c in labels[i]
+                lw += glyph_extent!(t, nothing, Int64(codepoint(c)), Int64(0),
+                                    Int64(400), Int64(0)).hadvance
+            end
+            lw * lsize > w && (w = lw * lsize)
+        end
+        push!(bankw, LEGEND_PATCH + LEGEND_PATCHLABELGAP + w)
+    end
+    total_w = 2.0 * LEGEND_PAD + LEGEND_COLGAP * Float64(nbanks - 1)
+    for w in bankw
+        total_w += w
+    end
+    rowh = LEGEND_PATCH  # > label line height at default sizes
+    total_h = 2.0 * LEGEND_PAD + Float64(nrows) * rowh + Float64(nrows - 1) * LEGEND_ROWGAP
+
+    x0 = ax.legend_halign == 0 ? irect.x + LEGEND_MARGIN :
+         ax.legend_halign == 1 ? irect.x + 0.5 * (irect.w - total_w) :
+         irect.x + irect.w - LEGEND_MARGIN - total_w
+    y0 = ax.legend_valign == 2 ? irect.y + LEGEND_MARGIN :
+         ax.legend_valign == 1 ? irect.y + 0.5 * (irect.h - total_h) :
+         irect.y + irect.h - LEGEND_MARGIN - total_h
+
+    # background + frame
+    set_fill_rgba(ctx, 255.0, 255.0, 255.0, 1.0)
+    fill_rect(ctx, x0, y0, total_w, total_h)
+    _set_stroke!(ctx, (0.0, 0.0, 0.0, 1.0), 1.0)
+    set_line_dash4(ctx, 0.0, 0.0, 0.0, 0.0, Int64(0))
+    begin_path(ctx)
+    rect(ctx, x0, y0, total_w, total_h)
+    stroke(ctx)
+
+    bx = x0 + LEGEND_PAD
+    for b in 1:nbanks
+        for r in 1:nrows
+            i = (b - 1) * nrows + r
+            i <= n || continue
+            py = y0 + LEGEND_PAD + Float64(r - 1) * (rowh + LEGEND_ROWGAP)
+            cy = py + 0.5 * rowh
+            kind = kinds[i]
+            idx = idxs[i]
+            if kind == PLOT_LINES
+                pl = ax.lines[idx]
+                pattern = pl.linestyle == LINESTYLE_SOLID ? no_dash() :
+                          pl.linestyle == LINESTYLE_DASH ? linestyle_to_pattern([0.0, 3.0, 4.0], pl.linewidth) :
+                          pl.linestyle == LINESTYLE_DOT ? linestyle_to_pattern([0.0, 1.0, 2.0], pl.linewidth) :
+                          linestyle_to_pattern([0.0, 3.0, 4.0, 5.0, 6.0], pl.linewidth)
+                pts = NTuple{2,Float64}[(bx, cy), (bx + LEGEND_PATCH, cy)]
+                draw_lines!(ctx, pts, true, pl.color[1], pl.color[2], pl.color[3], pl.color[4],
+                            pl.linewidth, pattern, THEME_LINECAP, THEME_JOINSTYLE, 10.0)
+            elseif kind == PLOT_SCATTER
+                ps = ax.scatters[idx]
+                mx = bx + 0.5 * LEGEND_PATCH
+                if ps.marker == MARKER_RECT
+                    h = RECT_HALF * ps.markersize
+                    draw_marker_rect!(ctx, mx, cy, 2.0 * h, 0.0, 0.0, 2.0 * h,
+                                      ps.color[1], ps.color[2], ps.color[3], ps.color[4],
+                                      ps.strokecolor[1], ps.strokecolor[2], ps.strokecolor[3], ps.strokecolor[4],
+                                      ps.strokewidth)
+                else
+                    rr = CIRCLE_R * ps.markersize
+                    draw_marker_circle!(ctx, mx, cy, 2.0 * rr, 0.0, 0.0, 2.0 * rr,
+                                        ps.color[1], ps.color[2], ps.color[3], ps.color[4],
+                                        ps.strokecolor[1], ps.strokecolor[2], ps.strokecolor[3], ps.strokecolor[4],
+                                        ps.strokewidth)
+                end
+            else  # PLOT_BARPLOT — PolyElement fills the patch
+                pb = ax.bars[idx]
+                draw_poly_rect!(ctx, bx, py, LEGEND_PATCH, rowh,
+                                pb.color[1], pb.color[2], pb.color[3], pb.color[4],
+                                0.0, 0.0, 0.0, 1.0, 0.0, no_dash(),
+                                THEME_LINECAP, THEME_JOINSTYLE, 4.0)
+            end
+            _text!(ctx, labels[i], bx + LEGEND_PATCH + LEGEND_PATCHLABELGAP, cy,
+                   lsize, Int64(0), Int64(2), THEME_TEXTCOLOR)
+        end
+        bx += bankw[b] + LEGEND_COLGAP
+    end
     return nothing
 end

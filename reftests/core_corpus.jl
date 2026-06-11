@@ -104,6 +104,15 @@ const CORPUS = Scene2[
         (Makie, fig) -> (ax = Makie.Axis(fig[1, 1]; title = "Title", subtitle = "Sub",
                                          xminorgridvisible = true, yminorgridvisible = true);
                 Makie.lines!(ax, XS, YS1))),
+    Scene2("legend: axislegend rt",
+        fig -> (ax = WasmMakie.Axis(fig[1, 1]);
+                WasmMakie.lines!(ax, XS, YS1; label = "one");
+                WasmMakie.scatter!(ax, XS, YS2; label = "two", color = :red, markersize = 10.0);
+                WasmMakie.axislegend(ax)),
+        (Makie, fig) -> (ax = Makie.Axis(fig[1, 1]);
+                Makie.lines!(ax, XS, YS1; label = "one");
+                Makie.scatter!(ax, XS, YS2; label = "two", color = :red, markersize = 10);
+                Makie.axislegend(ax))),
 ]
 
 end # module

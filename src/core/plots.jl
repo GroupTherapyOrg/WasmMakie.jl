@@ -27,6 +27,7 @@ mutable struct LinesPlot
     color::NTuple{4,Float64}
     linewidth::Float64
     linestyle::Int64
+    label::String          # legend entry ("" = none)
 end
 
 mutable struct ScatterPlot
@@ -37,6 +38,7 @@ mutable struct ScatterPlot
     marker::Int64
     strokecolor::NTuple{4,Float64}
     strokewidth::Float64
+    label::String
 end
 
 mutable struct BarPlotData
@@ -46,6 +48,7 @@ mutable struct BarPlotData
     gap::Float64
     strokecolor::NTuple{4,Float64}
     strokewidth::Float64
+    label::String
 end
 
 # WTGAP(3aaa51b9a688): Matrix{Float64} fails wasm validation (struct.new

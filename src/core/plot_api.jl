@@ -17,9 +17,9 @@ Makie's `lines!` over the static core. `x` may be any real vector or range;
 """
 function lines!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
                 color = nothing, linewidth::Real = THEME_LINEWIDTH,
-                linestyle::Symbol = :solid)
+                linestyle::Symbol = :solid, label::String = "")
     c = color === nothing ? _next_cycle_color(ax) : _color(color)
-    push!(ax.lines, LinesPlot(_f64vec(x), _f64vec(y), c, Float64(linewidth), _linestyle(linestyle)))
+    push!(ax.lines, LinesPlot(_f64vec(x), _f64vec(y), c, Float64(linewidth), _linestyle(linestyle), label))
     _push_plot!(ax, PLOT_LINES, Int64(length(ax.lines)))
     return ax.lines[end]
 end
@@ -33,10 +33,10 @@ lines!(ax::Axis, x::AbstractVector{<:Real}, f::Function; kwargs...) =
 function scatter!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
                   color = nothing, markersize::Real = THEME_MARKERSIZE,
                   marker::Symbol = :circle, strokecolor = :black,
-                  strokewidth::Real = 0.0)
+                  strokewidth::Real = 0.0, label::String = "")
     c = color === nothing ? _next_cycle_color(ax) : _color(color)
     push!(ax.scatters, ScatterPlot(_f64vec(x), _f64vec(y), c, Float64(markersize),
-                                   _marker(marker), _color(strokecolor), Float64(strokewidth)))
+                                   _marker(marker), _color(strokecolor), Float64(strokewidth), label))
     _push_plot!(ax, PLOT_SCATTER, Int64(length(ax.scatters)))
     return ax.scatters[end]
 end
@@ -46,10 +46,10 @@ end
 """
 function barplot!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
                   color = nothing, gap::Real = 0.2, strokecolor = :black,
-                  strokewidth::Real = 0.0)
+                  strokewidth::Real = 0.0, label::String = "")
     c = color === nothing ? _next_cycle_color(ax) : _color(color)
     push!(ax.bars, BarPlotData(_f64vec(x), _f64vec(y), c, Float64(gap),
-                               _color(strokecolor), Float64(strokewidth)))
+                               _color(strokecolor), Float64(strokewidth), label))
     _push_plot!(ax, PLOT_BARPLOT, Int64(length(ax.bars)))
     return ax.bars[end]
 end
