@@ -29,6 +29,11 @@ import WasmMakie
     end
 end
 
+# NOTE: optimize_ticks parity vs PlotUtils lives in the ROOT test suite via a
+# SUBPROCESS oracle — inferring both implementations in one Julia 1.12 session
+# segfaults the compiler (inference recursion; reproduced with PlotUtils alone
+# + WasmMakie, no Makie involved).
+
 const HAVE_RENDERER = CanvasMakie.renderer_available()
 
 @testset "Screen protocol (D-001)" begin

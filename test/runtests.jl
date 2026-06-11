@@ -361,6 +361,41 @@ end
     @test WasmMakie.THEME_MARKERSIZE == 9.0
 end
 
+@testset "optimize_ticks parity vs PlotUtils (C-002, subprocess oracle)" begin
+    # The oracle runs in its OWN process: co-inferring our vendored copy and
+    # PlotUtils' original in one Julia 1.12 session segfaults the compiler
+    # (inference recursion — reproduced minimally with just these two pkgs).
+    cases = [
+        "(0.0, 10.0)", "(0.0, 1.0)", "(-5.0, 5.0)", "(0.001, 0.0023)",
+        "(-1.0e6, 1.0e6)", "(2.5, 7.5)", "(0.0, 100.0)", "(-0.1, 0.7)",
+        "(1234.5, 1236.7)", "(-273.15, 0.0)", "(0.0, 1.0e-9)",
+        "(0.0, 10.0; extend_ticks=true)", "(-3.0, 17.0; k_max=4)",
+        "(-3.0, 17.0; k_ideal=8, k_max=12)", "(-3.0, 17.0; strict_span=false)",
+        "(0.0, 4.0; scale=:log10)", "(1.0, 9.0; scale=:log2)",
+    ]
+    script = "import PlotUtils\n" *
+        join(["println(repr(PlotUtils.optimize_ticks$(c)))" for c in cases], "\n")
+    proj = dirname(Base.active_project())
+    oracle = readlines(`julia +1.12 --project=$proj -e $script`)
+    @test length(oracle) == length(cases)
+    for (c, expected) in zip(cases, oracle)
+        ours = eval(Meta.parse("WasmMakie.optimize_ticks$(c)"))
+        @test repr(ours) == expected
+    end
+end
+
+@testset "vendored optimize_ticks sanity (C-002)" begin
+    ticks, lo, hi = WasmMakie.optimize_ticks(0.0, 10.0)
+    @test ticks == [0.0, 5.0, 10.0]
+    @test lo == 0.0 && hi == 10.0
+    ticks2, _, _ = WasmMakie.optimize_ticks(0.0, 1.0)
+    @test first(ticks2) >= 0.0 && last(ticks2) <= 1.0
+    @test length(ticks2) >= 2
+    # degenerate span falls back
+    t3, _, _ = WasmMakie.optimize_ticks(5.0, 5.0 + 1.0e-13)
+    @test length(t3) == 2
+end
+
 @testset "WasmMakie scaffold" begin
     @test WasmMakie isa Module
     @test pkgversion(WasmMakie) == v"0.0.1"
