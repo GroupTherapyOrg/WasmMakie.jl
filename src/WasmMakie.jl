@@ -72,6 +72,6 @@ export GlyphExtent, ExtentProvider, glyph_extent!, text_advance!, string_extent!
 export GlyphCollection, glyph_collection!, halign2num, valign2num
 export TableExtents
 export hidedecorations!, hidexdecorations!, hideydecorations!, hidespines!
-export axislegend
+export axislegend, Colorbar
 
 end # module

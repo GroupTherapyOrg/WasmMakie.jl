@@ -1,6 +1,13 @@
 # The plotting API — Makie's user-facing functions over the typed plot
 # structs (defined in plots.jl, before Axis so its containers are concrete).
 
+"Makie tightlimits!: zero the autolimit margins (heatmap/image plots)."
+function _tightlimits!(ax::Axis)
+    ax.xautolimitmargin = 0.0
+    ax.yautolimitmargin = 0.0
+    return nothing
+end
+
 # next color in the Wong cycle for this axis (Makie's per-axis plot cycling)
 _next_cycle_color(ax::Axis) = cycle_color(length(ax.plot_order) + 1)
 
@@ -76,6 +83,7 @@ function heatmap!(ax::Axis, xs::AbstractVector{<:Real}, ys::AbstractVector{<:Rea
     end
     push!(ax.heatmaps, HeatmapPlot(exs, eys, vals, Int64(nx), Int64(ny),
                                    Float64(colorrange[1]), Float64(colorrange[2])))
+    _tightlimits!(ax)   # needs_tight_limits(::Heatmap) — Makie figureplotting.jl:419
     _push_plot!(ax, PLOT_HEATMAP, Int64(length(ax.heatmaps)))
     return ax.heatmaps[end]
 end
@@ -135,6 +143,7 @@ function image!(ax::Axis, xspan::Tuple{Real,Real}, yspan::Tuple{Real,Real},
     push!(ax.images, ImagePlot(Float64(xspan[1]), Float64(xspan[2]),
                                Float64(yspan[1]), Float64(yspan[2]),
                                flat, Int64(ni), Int64(nj), interpolate))
+    _tightlimits!(ax)   # needs_tight_limits(::Image)
     _push_plot!(ax, PLOT_IMAGE, Int64(length(ax.images)))
     return ax.images[end]
 end
@@ -152,6 +161,7 @@ function image!(ax::Axis, xspan::Tuple{Real,Real}, yspan::Tuple{Real,Real},
     push!(ax.images, ImagePlot(Float64(xspan[1]), Float64(xspan[2]),
                                Float64(yspan[1]), Float64(yspan[2]),
                                flat, ni, nj, interpolate))
+    _tightlimits!(ax)   # needs_tight_limits(::Image)
     _push_plot!(ax, PLOT_IMAGE, Int64(length(ax.images)))
     return ax.images[end]
 end

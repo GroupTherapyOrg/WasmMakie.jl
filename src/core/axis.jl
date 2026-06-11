@@ -77,8 +77,8 @@ empty/degenerate; user-set Axis limits override per side.
 """
 function final_limits(ax::Axis)
     xlo, xhi, ylo, yhi = _plots_limits(ax)
-    xmin, xmax = _final_1d(xlo, xhi, ax.xmin, ax.xmax, 0.05)
-    ymin, ymax = _final_1d(ylo, yhi, ax.ymin, ax.ymax, 0.05)
+    xmin, xmax = _final_1d(xlo, xhi, ax.xmin, ax.xmax, ax.xautolimitmargin)
+    ymin, ymax = _final_1d(ylo, yhi, ax.ymin, ax.ymax, ax.yautolimitmargin)
     return xmin, xmax, ymin, ymax
 end
 

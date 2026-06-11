@@ -57,8 +57,20 @@ function render!(fig::Figure, ctx)
         resolved[i] = resolve_axis(ax)
         prots[(ax.row - 1) * ncols + ax.col] = resolved[i].prot
     end
+    for cb in fig.colorbars
+        prots[(cb.row - 1) * ncols + cb.col] = _colorbar_protrusions(cb)
+    end
     sizes_r = [auto_size() for _ in 1:nrows]
     sizes_c = [auto_size() for _ in 1:ncols]
+    # a column holding only vertical colorbars gets the fixed 12px bar width
+    # (Makie Colorbar size); same for rows of horizontal bars
+    for cb in fig.colorbars
+        if cb.vertical && !any(a -> a.col == cb.col, fig.axes)
+            sizes_c[cb.col] = fixed_size(COLORBAR_SIZE)
+        elseif !cb.vertical && !any(a -> a.row == cb.row, fig.axes)
+            sizes_r[cb.row] = fixed_size(COLORBAR_SIZE)
+        end
+    end
     rects = solve_grid(0.0, 0.0, fig.width, fig.height, nrows, ncols, prots,
                        sizes_r, sizes_c, fig.rowgap, fig.colgap;
                        outside_pad = fig.padding)
@@ -66,6 +78,102 @@ function render!(fig::Figure, ctx)
     for (i, ax) in enumerate(fig.axes)
         irect = rects[(ax.row - 1) * ncols + ax.col]
         draw_axis!(ctx, ax, resolved[i], irect)
+    end
+    for cb in fig.colorbars
+        irect = rects[(cb.row - 1) * ncols + cb.col]
+        draw_colorbar!(ctx, cb, irect)
+    end
+    return nothing
+end
+
+# ── L-003: Colorbar (Makie @Block defaults: size 12, ticksize 5,
+# ticklabelpad 3, labelpadding 5, spine w1, vertical + flipaxis right) ──────
+const COLORBAR_SIZE = 12.0
+const COLORBAR_TICKLABELPAD = 3.0
+const COLORBAR_LABELPADDING = 5.0
+
+function _colorbar_protrusions(cb::Colorbar)
+    ticks = wilkinson_ticks_default(cb.lo, cb.hi)
+    labels = format_ticks_auto(ticks)
+    tlsize = THEME_FONTSIZE
+    if cb.vertical
+        right = AXIS_TICKSIZE + COLORBAR_TICKLABELPAD + _max_label_width(labels, tlsize)
+        if !isempty(cb.label)
+            right += COLORBAR_LABELPADDING + TEXT_HEIGHT_RATIO * tlsize
+        end
+        return Protrusions(0.0, right, 0.0, 0.0)
+    else
+        top = AXIS_TICKSIZE + COLORBAR_TICKLABELPAD + TEXT_HEIGHT_RATIO * tlsize
+        if !isempty(cb.label)
+            top += COLORBAR_LABELPADDING + TEXT_HEIGHT_RATIO * tlsize
+        end
+        return Protrusions(0.0, 0.0, top, 0.0)
+    end
+end
+
+function draw_colorbar!(ctx, cb::Colorbar, irect::Rect2)
+    # the colormap as a 1×256 image strip (CairoMakie rasterizes the same way)
+    n = Int64(length(VIRIDIS))
+    pixels = Vector{NTuple{4,Float64}}(undef, n)
+    if cb.vertical
+        for j in 1:n
+            pixels[j] = VIRIDIS[n - j + 1]   # top = hi
+        end
+        draw_image_scaled!(ctx, pixels, Int64(1), n,
+                           irect.x, irect.y, irect.w, irect.h, true)
+    else
+        for j in 1:n
+            pixels[j] = VIRIDIS[j]
+        end
+        draw_image_scaled!(ctx, pixels, n, Int64(1),
+                           irect.x, irect.y, irect.w, irect.h, true)
+    end
+
+    # spine
+    _set_stroke!(ctx, (0.0, 0.0, 0.0, 1.0), AXIS_SPINEWIDTH)
+    set_line_dash4(ctx, 0.0, 0.0, 0.0, 0.0, Int64(0))
+    begin_path(ctx)
+    rect(ctx, irect.x, irect.y, irect.w, irect.h)
+    stroke(ctx)
+
+    # ticks + labels on the flip side (right / top)
+    ticks = wilkinson_ticks_default(cb.lo, cb.hi)
+    labels = format_ticks_auto(ticks)
+    tlsize = THEME_FONTSIZE
+    span = cb.hi - cb.lo
+    for (v, lab) in zip(ticks, labels)
+        frac = span == 0.0 ? 0.5 : (v - cb.lo) / span
+        if cb.vertical
+            y = irect.y + irect.h - frac * irect.h
+            _hline!(ctx, irect.x + irect.w, irect.x + irect.w + AXIS_TICKSIZE, y)
+            _text!(ctx, lab.text,
+                   irect.x + irect.w + AXIS_SPINEWIDTH + AXIS_TICKSIZE + COLORBAR_TICKLABELPAD,
+                   y, tlsize, Int64(0), Int64(2), THEME_TEXTCOLOR)
+        else
+            x = irect.x + frac * irect.w
+            _vline!(ctx, x, irect.y - AXIS_TICKSIZE, irect.y)
+            _text!(ctx, lab.text, x,
+                   irect.y - AXIS_SPINEWIDTH - AXIS_TICKSIZE - COLORBAR_TICKLABELPAD,
+                   tlsize, Int64(1), Int64(3), THEME_TEXTCOLOR)
+        end
+    end
+
+    if !isempty(cb.label)
+        if cb.vertical
+            tick_w = _max_label_width(labels, tlsize)
+            save(ctx)
+            translate(ctx, irect.x + irect.w + AXIS_TICKSIZE + COLORBAR_TICKLABELPAD +
+                           tick_w + COLORBAR_LABELPADDING + 0.5 * TEXT_HEIGHT_RATIO * tlsize,
+                      irect.y + 0.5 * irect.h)
+            rotate(ctx, pi / 2)
+            _text!(ctx, cb.label, 0.0, 0.0, tlsize, Int64(1), Int64(2), THEME_TEXTCOLOR)
+            restore(ctx)
+        else
+            _text!(ctx, cb.label, irect.x + 0.5 * irect.w,
+                   irect.y - AXIS_TICKSIZE - COLORBAR_TICKLABELPAD -
+                   TEXT_HEIGHT_RATIO * tlsize - COLORBAR_LABELPADDING,
+                   tlsize, Int64(1), Int64(3), THEME_TEXTCOLOR)
+        end
     end
     return nothing
 end

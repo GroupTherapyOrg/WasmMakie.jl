@@ -113,6 +113,13 @@ const CORPUS = Scene2[
                 Makie.lines!(ax, XS, YS1; label = "one");
                 Makie.scatter!(ax, XS, YS2; label = "two", color = :red, markersize = 10);
                 Makie.axislegend(ax))),
+    Scene2("colorbar: heatmap-linked vertical",
+        fig -> (hm = WasmMakie.heatmap!(WasmMakie.Axis(fig[1, 1]), [0, 1, 2, 3], [0, 1, 2],
+                                        [1.0 4.0; 2.0 5.0; 3.0 6.0]);
+                WasmMakie.Colorbar(fig[1, 2], hm)),
+        (Makie, fig) -> (hm = Makie.heatmap!(Makie.Axis(fig[1, 1]), [0, 1, 2, 3], [0, 1, 2],
+                                             [1.0 4.0; 2.0 5.0; 3.0 6.0]);
+                Makie.Colorbar(fig[1, 2], hm))),
 ]
 
 end # module

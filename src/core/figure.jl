@@ -50,6 +50,10 @@ mutable struct Axis
     rightspinevisible::Bool
     topspinevisible::Bool
     bottomspinevisible::Bool
+    # autolimit margins (Makie x/yautolimitmargin 0.05; heatmap!/image! call
+    # the tightlimits! rule — needs_tight_limits — and zero them)
+    xautolimitmargin::Float64
+    yautolimitmargin::Float64
     # L-002 legend state (axislegend) — drawn inside the axis viewport
     legend_active::Bool
     legend_halign::Int64      # 0 left, 1 center, 2 right
@@ -79,6 +83,7 @@ function Axis(; title::String = "", xlabel::String = "", ylabel::String = "",
                 2, 2,
                 true, true, true, true,
                 true, true, true, true,
+                0.05, 0.05,
                 false, 2, 2, 1,
                 LinesPlot[], ScatterPlot[], BarPlotData[], HeatmapPlot[],
                 ImagePlot[], Tuple{Int64,Int64}[])
@@ -104,6 +109,24 @@ function axislegend(ax::Axis; position::Symbol = :rt, nbanks::Integer = 1)
 end
 
 """
+    Colorbar(figure_position; limits = (0, 1), label = "", vertical = true)
+    Colorbar(figure_position, hm::HeatmapPlot; label = "", vertical = true)
+
+A continuous colorbar grid cell (L-003, viridis — the core's colormap).
+The plot-linked form takes its range from the heatmap's colorrange (or its
+data extrema when automatic). Vertical bars tick to the right (Makie
+flipaxis default).
+"""
+mutable struct Colorbar
+    row::Int64
+    col::Int64
+    lo::Float64
+    hi::Float64
+    label::String
+    vertical::Bool
+end
+
+"""
     Figure(; size = $(THEME_SIZE), backgroundcolor = white, figure_padding = $(THEME_FIGURE_PADDING))
 
 The top-level figure. `fig[row, col]` returns a `GridPosition` that `Axis`
@@ -117,13 +140,15 @@ mutable struct Figure
     rowgap::Float64
     colgap::Float64
     axes::Vector{Axis}
+    colorbars::Vector{Colorbar}
 end
 
 function Figure(; size::Tuple{Real,Real} = THEME_SIZE,
                 backgroundcolor::NTuple{4,Float64} = THEME_BACKGROUNDCOLOR,
                 figure_padding::Real = THEME_FIGURE_PADDING)
     return Figure(Float64(size[1]), Float64(size[2]), backgroundcolor,
-                  Float64(figure_padding), THEME_ROWGAP, THEME_COLGAP, Axis[])
+                  Float64(figure_padding), THEME_ROWGAP, THEME_COLGAP, Axis[],
+                  Colorbar[])
 end
 
 struct GridPosition
@@ -134,6 +159,23 @@ end
 
 Base.getindex(fig::Figure, row::Integer, col::Integer) =
     GridPosition(fig, Int64(row), Int64(col))
+
+function Colorbar(gp::GridPosition; limits::Tuple{Real,Real} = (0.0, 1.0),
+                  label::String = "", vertical::Bool = true)
+    cb = Colorbar(gp.row, gp.col, Float64(limits[1]), Float64(limits[2]),
+                  label, vertical)
+    push!(gp.figure.colorbars, cb)
+    return cb
+end
+
+function Colorbar(gp::GridPosition, hm::HeatmapPlot; label::String = "",
+                  vertical::Bool = true)
+    lo = isnan(hm.colorrange_min) ? minimum(hm.values) : hm.colorrange_min
+    hi = isnan(hm.colorrange_max) ? maximum(hm.values) : hm.colorrange_max
+    cb = Colorbar(gp.row, gp.col, lo, hi, label, vertical)
+    push!(gp.figure.colorbars, cb)
+    return cb
+end
 
 """
     hidexdecorations!(ax; label = true, ticklabels = true, ticks = true,
@@ -206,6 +248,10 @@ function grid_extents(fig::Figure)
     for ax in fig.axes
         ax.row > nrows && (nrows = ax.row)
         ax.col > ncols && (ncols = ax.col)
+    end
+    for cb in fig.colorbars
+        cb.row > nrows && (nrows = cb.row)
+        cb.col > ncols && (ncols = cb.col)
     end
     return nrows, ncols
 end

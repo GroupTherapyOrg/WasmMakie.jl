@@ -676,6 +676,34 @@ end
     @test length(r2.commands) == length(rn.commands)   # legend was a no-op
 end
 
+@testset "Colorbar (L-003)" begin
+    fig = Figure(size = (300, 200))
+    ax = Axis(fig[1, 1])
+    hm = heatmap!(ax, [0, 1, 2, 3], [0, 1, 2], [1.0 4.0; 2.0 5.0; 3.0 6.0])
+    cb = Colorbar(fig[1, 2], hm)
+    @test cb.lo == 1.0 && cb.hi == 6.0      # linked to heatmap data range
+    @test cb.vertical
+    @test length(fig.colorbars) == 1
+    @test WasmMakie.grid_extents(fig) == (1, 2)
+    # explicit limits + label
+    fig2 = Figure(size = (300, 200))
+    Axis(fig2[1, 1])
+    cb2 = Colorbar(fig2[1, 2]; limits = (0.0, 10.0), label = "level")
+    p = WasmMakie._colorbar_protrusions(cb2)
+    @test p.r > 5.0   # ticks + labels + label space on the right
+    @test p.l == 0.0 && p.t == 0.0
+    # stream: image strip + spine + ticks + label drawn
+    r = RecordingCtx(); render!(fig, r)
+    @test any(c -> c.op === :img_buf_new, r.commands)
+    @test any(c -> c.op === :draw_image_buf, r.commands)
+    # horizontal variant renders too
+    fig3 = Figure(size = (300, 200))
+    Axis(fig3[2, 1])
+    Colorbar(fig3[1, 1]; limits = (0.0, 1.0), vertical = false)
+    r3 = RecordingCtx(); render!(fig3, r3)
+    @test any(c -> c.op === :img_buf_new, r3.commands)
+end
+
 @testset "static-core render pipeline (C-009)" begin
     fig = Figure(size = (300, 200))
     ax = Axis(fig[1, 1]; title = "T", xlabel = "x", ylabel = "y")
@@ -839,6 +867,14 @@ function w005_legend()
     axislegend(ax)
     render!(fig, WasmCtx()); return Int64(0)
 end
+function w005_colorbar()
+    fig = Figure(size = (300.0, 200.0))
+    ax = Axis(fig[1, 1])
+    hm = heatmap!(ax, [0.0, 1.0, 2.0, 3.0], [0.0, 1.0, 2.0],
+                  [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], Int64(3), Int64(2))
+    Colorbar(fig[1, 2], hm)
+    render!(fig, WasmCtx()); return Int64(0)
+end
 function w005_grid()
     fig = Figure(size = (400.0, 300.0))
     lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
@@ -877,6 +913,11 @@ end
                 lines!(ax, [0.0, 1.0, 2.0], [0.5, 1.5, 1.0]; label = "one")
                 scatter!(ax, [0.5, 1.5], [1.2, 0.8]; label = "two", color = :red, markersize = 10.0)
                 axislegend(ax)
+            end),
+            ("colorbar", w005_colorbar, (300.0, 200.0), fig -> begin
+                hm = heatmap!(Axis(fig[1, 1]), [0.0, 1.0, 2.0, 3.0], [0.0, 1.0, 2.0],
+                              [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], Int64(3), Int64(2))
+                Colorbar(fig[1, 2], hm)
             end),
             ("grid", w005_grid, (400.0, 300.0), fig -> begin
                 lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
