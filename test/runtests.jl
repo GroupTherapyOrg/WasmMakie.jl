@@ -384,6 +384,34 @@ end
     end
 end
 
+@testset "tick label formatting (C-003) — Makie oracle hardcoded" begin
+    # oracle: Makie.format_ticks_plain outputs captured live from 0.24.11
+    F = WasmMakie.format_ticks_plain
+    @test F([0.0, 5.0, 10.0]) == ["0", "5", "10"]
+    @test F([0.0, 0.25, 0.5, 0.75, 1.0]) == ["0.00", "0.25", "0.50", "0.75", "1.00"]
+    @test F([-5.0, 0.0, 5.0]) == ["−5", "0", "5"]
+    @test F([0.001, 0.0015, 0.002]) == ["0.0010", "0.0015", "0.0020"]
+    @test F([1234.5, 1235.0, 1236.7]) == ["1234.5", "1235.0", "1236.7"]
+    @test F([-273.15, -100.0, 0.0]) == ["−273.15", "−100.00", "0.00"]
+    @test F([1.0e6, 2.0e6]) == ["1000000", "2000000"]
+    @test F([0.0, 1.0e-9, 2.0e-9]) ==
+          ["0.000000000", "0.000000001", "0.000000002"]
+
+    # auto: plain ranges → plain TickLabels
+    auto1 = WasmMakie.format_ticks_auto([0.0, 5.0, 10.0])
+    @test auto1 == [WasmMakie.TickLabel("0", ""), WasmMakie.TickLabel("5", ""),
+                    WasmMakie.TickLabel("10", "")]
+    # auto: tiny spans → scientific (oracle: rich("1","×10",sup("−9")) etc.)
+    auto2 = WasmMakie.format_ticks_auto([0.0, 1.0e-9, 2.0e-9])
+    @test auto2 == [WasmMakie.TickLabel("0", ""),
+                    WasmMakie.TickLabel("1×10", "−9"),
+                    WasmMakie.TickLabel("2×10", "−9")]
+    # mixed-precision scientific keeps aligned padding (upstream can_strip=false)
+    auto3 = WasmMakie.format_ticks_auto([1.5e-7, 2.0e-7])
+    @test auto3[1].sup == "−7" && auto3[2].sup == "−7"
+    @test endswith(auto3[1].text, "×10") && startswith(auto3[1].text, "1.5")
+end
+
 @testset "vendored optimize_ticks sanity (C-002)" begin
     ticks, lo, hi = WasmMakie.optimize_ticks(0.0, 10.0)
     @test ticks == [0.0, 5.0, 10.0]

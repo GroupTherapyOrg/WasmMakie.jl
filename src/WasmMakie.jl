@@ -49,6 +49,7 @@ include("draw/poly.jl")
 include("core/theme.jl")
 include("core/figure.jl")
 include("vendor/ticks.jl")
+include("vendor/tick_format.jl")
 
 export CANVAS_OPS, import_specs, js_glue
 export AbstractCtx, WasmCtx, RecordingCtx, Command, to_json
