@@ -41,7 +41,7 @@ function mat4_translation_scale(tx::Float64, ty::Float64, tz::Float64,
                  tx, ty, tz, 1.0))
 end
 
-# WTGAP(pending, W-003): `ntuple(f, 16)` with a closure stack-overflows the
+# WTGAP(9d411ad8ae24): `ntuple(f, 16)` with a closure stack-overflows the
 # WasmTarget compiler — explicitly unrolled instead (matches what
 # StaticArrays' @generated code produces, which DOES compile).
 function mat4_mul(A::Mat4, B::Mat4)

@@ -9,7 +9,7 @@
 # Closed-world discipline applies to this file: concrete types only.
 
 const NO_DASH = Float64[]  # empty pattern = solid (host-side use only)
-# WTGAP(pending, W-003): referencing a const non-isbits global (this empty
+# WTGAP(ffd3d052c6a4): referencing a const non-isbits global (this empty
 # Vector) from WasmTarget-compiled code traps `unreachable` at runtime —
 # locally-constructed empties work. Compiled paths call no_dash() instead.
 @inline no_dash() = Float64[]

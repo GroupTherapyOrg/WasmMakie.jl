@@ -69,7 +69,7 @@ function ge(e::EdgeInteger, x)
     end
 end
 
-# WTGAP(pending, W-003) — three WasmTarget runtime traps worked around below,
+# WTGAP(284df332c70f, adb7337104b3, 2412608c2d5a, e593fafe2f38) — four WasmTarget runtime traps worked around below,
 # behavior pinned by the locateticks oracle tests:
 #   (a) range broadcasts `(low:high) .* step .+ x` trap → explicit loops
 #   (b) round(x; digits=d) traps → _round_digits
@@ -114,8 +114,8 @@ function locateticks(vmin, vmax, n_ideal::Int, _integer::Bool = false, _min_n_ti
         edge = EdgeInteger(step, offset)
         low = le(edge, _vmin - best_vmin)
         high = ge(edge, _vmax - best_vmin)
-        ticks = Float64[]  # WTGAP(a): was (low:high) .* step .+ best_vmin
-        # WTGAP(d): Float64 unit-range iteration traps in wasm; le/ge return
+        ticks = Float64[]  # WTGAP(284df332c70f): was (low:high) .* step .+ best_vmin
+        # WTGAP(e593fafe2f38): Float64 unit-range iteration traps in wasm; le/ge return
         # whole numbers by contract, so loop over Ints
         for ii in round(Int, low):round(Int, high)
             push!(ticks, ii * step + best_vmin)
@@ -138,7 +138,7 @@ function locateticks(vmin, vmax, n_ideal::Int, _integer::Bool = false, _min_n_ti
     end
     vals = filter(x -> vmin <= x <= vmax, ticks)
 
-    # WTGAP(c): explicit loop replaces floor(Int, minimum(log10.(abs.(diff(vals)))))
+    # WTGAP(2412608c2d5a): explicit loop replaces floor(Int, minimum(log10.(abs.(diff(vals)))))
     minlog = Inf
     for i in 1:(length(vals) - 1)
         l = log10(abs(vals[i + 1] - vals[i]))
@@ -148,7 +148,7 @@ function locateticks(vmin, vmax, n_ideal::Int, _integer::Bool = false, _min_n_ti
     d = max(0, -exponent + 1)
     out = Vector{Float64}(undef, length(vals))
     for i in eachindex(vals)
-        out[i] = _round_digits(vals[i], d)  # WTGAP(b)
+        out[i] = _round_digits(vals[i], d)  # WTGAP(adb7337104b3)
     end
     return out
 end
