@@ -12,8 +12,6 @@ error	-	Transformed 2D Arrows	CanvasMakie: poly with args (Vector{GeometryBasics
 error	-	arrows2d alignment	CanvasMakie: poly with args (Vector{GeometryBasics.Mesh},) needs mesh support (plan R-005)
 error	-	arrows2d z-order	CanvasMakie: poly with args (Vector{GeometryBasics.Mesh},) needs mesh support (plan R-005)
 error	-	Dendrogram	CanvasMakie: poly with args (Vector{Union{AbstractVector{<:Union{NTuple{N, T}, StaticArraysCore.StaticArray{Tuple{N}, T, 1}} where {N, T}}, NTuple{N, T} where {N, T}, GeometryBasics.AbstractMesh, GeometryBasics.HyperRectangle, GeometryBasics.MultiPolygon, GeometryBasics.Polygon, StaticArraysCore.Sta
-recorded	2.0	intersecting polygon	
-recorded	2.0	Voronoiplot with empty polygons and automatic color generation	
 recorded	0.052	RGB heatmap, heatmap + image overlap	
 recorded	0.0518	Voronoiplot with a nonlinear transform	
 recorded	0.0465	LaTeXStrings linesegment offsets	
@@ -58,6 +56,7 @@ recorded	0.0149	Datashader AggMean
 recorded	0.0149	lines (some with NaNs) with array colors	
 recorded	0.0143	colorscale (hexbin)	
 recorded	0.0143	hvlines + hvspan with transform_func	
+recorded	0.0141	intersecting polygon	
 recorded	0.0137	Rangebars x y low high	
 recorded	0.0137	ablines + hvlines + hvspan	
 recorded	0.0137	Plotting empty polygons	
@@ -68,6 +67,7 @@ recorded	0.0134	colorscale (heatmap)
 recorded	0.0132	Errorbars x y low high	
 recorded	0.0131	Voronoiplot after adding points	
 recorded	0.013	Log scale histogram (barplot)	
+recorded	0.013	Voronoiplot with empty polygons and automatic color generation	
 recorded	0.0128	colormap with specific values	
 recorded	0.0122	Z-translation within a recipe	
 recorded	0.012	Errorbars log scale	
@@ -124,4 +124,4 @@ skipped	-	arrows3d updates	skip pattern: arrows3d
 skipped	-	Transformed rotations	skip pattern: contour3d
 unsupported	-	Streamplot animation	result type VideoStream (video/steps?)
 unsupported	-	Line changing colour	result type VideoStream (video/steps?)
-# REFPASS passed=69/88 scored=73 recorded=73 errored=13 unsupported=2 rate=0.784
+# REFPASS passed=71/88 scored=73 recorded=73 errored=13 unsupported=2 rate=0.807
