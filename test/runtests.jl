@@ -876,6 +876,48 @@ end
     @test ax5.lines[1].color != ax5.lines[2].color
 end
 
+@testset "contour recipes (R-004)" begin
+    # marching squares on a known saddle: z = x*y on [-1,1]^2, level 0 →
+    # the two axes are the isolines
+    xs = Float64[-1.0, 0.0, 1.0]
+    z = Float64[1.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 1.0]  # x*y column-major
+    lines = WasmMakie.contour_lines(xs, xs, z, Int64(3), Int64(3), 0.0)
+    @test !isempty(lines)
+    for line in lines
+        for (px, py) in line
+            @test abs(px * py) < 1e-9   # all crossings sit on the axes
+        end
+    end
+    # closed contour: radial bump, inner level traces a loop
+    n = 9
+    g = collect(range(-1.0, 1.0, length = n))
+    zr = Vector{Float64}(undef, n * n)
+    for j in 1:n, i in 1:n
+        zr[i + (j - 1) * n] = exp(-(g[i]^2 + g[j]^2) * 3.0)
+    end
+    loops = WasmMakie.contour_lines(g, g, zr, Int64(n), Int64(n), 0.5)
+    @test length(loops) == 1
+    @test loops[1][1] == loops[1][end]   # closed (loopback)
+    # contourlevels: n interior levels
+    ls = WasmMakie.contourlevels(0.0, 1.0, Int64(4))
+    @test ls ≈ [0.2, 0.4, 0.6, 0.8]
+    # recipes build plots
+    ax = Axis(Figure()[1, 1])
+    contour!(ax, g, g, zr, Int64(n), Int64(n))
+    @test length(ax.lines) >= 5
+    ax2 = Axis(Figure()[1, 1])
+    contourf!(ax2, g, g, zr, Int64(n), Int64(n); upsample = 2)
+    @test length(ax2.heatmaps) == 1
+    # band-midpoint quantization: every fine value is one of the midpoints
+    hm = ax2.heatmaps[1]
+    zmin, zmax = extrema(zr)
+    bw = (zmax - zmin) / 10
+    for v in hm.values
+        rem = (v - zmin) / bw - 0.5
+        @test abs(rem - round(rem)) < 1e-9
+    end
+end
+
 @testset "static-core render pipeline (C-009)" begin
     fig = Figure(size = (300, 200))
     ax = Axis(fig[1, 1]; title = "T", xlabel = "x", ylabel = "y")
@@ -1087,6 +1129,19 @@ function w005_groupedbars()
     crossbar!(Axis(fig[2, 2]), [1.0, 2.0], [2.0, 3.0], [1.0, 2.0], [3.0, 4.0])
     render!(fig, WasmCtx()); return Int64(0)
 end
+function w005_contour()
+    fig = Figure(size = (300.0, 200.0))
+    xs = Float64[0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+    z = Vector{Float64}(undef, 81)
+    for j in 1:9
+        for i in 1:9
+            z[i + (j - 1) * 9] = sin(3.0 * xs[i]) * cos(3.0 * xs[j])
+        end
+    end
+    contour!(Axis(fig[1, 1]), xs, xs, z, Int64(9), Int64(9))
+    contourf!(Axis(fig[1, 2]), xs, xs, z, Int64(9), Int64(9); upsample = 2)
+    render!(fig, WasmCtx()); return Int64(0)
+end
 function w005_grid()
     fig = Figure(size = (400.0, 300.0))
     lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
@@ -1162,6 +1217,17 @@ end
                          stack = Int64[1, 2, 1, 2])
                 waterfall!(Axis(fig[2, 1]), [1.0, 2.0, 3.0], [2.0, -1.0, 3.0])
                 crossbar!(Axis(fig[2, 2]), [1.0, 2.0], [2.0, 3.0], [1.0, 2.0], [3.0, 4.0])
+            end),
+            ("contour", w005_contour, (300.0, 200.0), fig -> begin
+                xs = Float64[0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+                z = Vector{Float64}(undef, 81)
+                for j in 1:9
+                    for i in 1:9
+                        z[i + (j - 1) * 9] = sin(3.0 * xs[i]) * cos(3.0 * xs[j])
+                    end
+                end
+                contour!(Axis(fig[1, 1]), xs, xs, z, Int64(9), Int64(9))
+                contourf!(Axis(fig[1, 2]), xs, xs, z, Int64(9), Int64(9); upsample = 2)
             end),
             ("grid", w005_grid, (400.0, 300.0), fig -> begin
                 lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])

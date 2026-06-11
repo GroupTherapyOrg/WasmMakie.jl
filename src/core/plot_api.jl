@@ -880,6 +880,122 @@ function violin!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
     return ax.polys[end]
 end
 
+"""
+    contour!(ax, xs, ys, z; levels = 5, linewidth = 1)
+
+Isolines via the vendored Contour.jl marching squares; level colors sampled
+from viridis over the z range (Makie contour defaults). The Matrix method is
+the host API; the flat overload is the wasm-kernel form.
+"""
+function contour!(ax::Axis, xs::AbstractVector{<:Real}, ys::AbstractVector{<:Real},
+                  z::AbstractMatrix{<:Real}; levels::Integer = 5, linewidth::Real = 1.0)
+    nx, ny = size(z)
+    flat = Vector{Float64}(undef, nx * ny)
+    for j in 1:ny, i in 1:nx
+        flat[i + (j - 1) * nx] = Float64(z[i, j])
+    end
+    return contour!(ax, xs, ys, flat, Int64(nx), Int64(ny); levels, linewidth)
+end
+
+function contour!(ax::Axis, xs::AbstractVector{<:Real}, ys::AbstractVector{<:Real},
+                  z::AbstractVector{<:Real}, nx::Int64, ny::Int64;
+                  levels::Integer = 5, linewidth::Real = 1.0)
+    xv = _f64vec(xs)
+    yv = _f64vec(ys)
+    zv = _f64vec(z)
+    zmin = Inf
+    zmax = -Inf
+    for v in zv
+        v < zmin && (zmin = v)
+        v > zmax && (zmax = v)
+    end
+    hs = contourlevels(zmin, zmax, Int64(levels))
+    for h in hs
+        c = interpolated_getindex(VIRIDIS, h, zmin, zmax)
+        for line in contour_lines(xv, yv, zv, nx, ny, h)
+            lx = Vector{Float64}(undef, length(line))
+            ly = Vector{Float64}(undef, length(line))
+            for i in eachindex(line)
+                lx[i] = line[i][1]
+                ly[i] = line[i][2]
+            end
+            lines!(ax, lx, ly; color = c, linewidth = Float64(linewidth))
+        end
+    end
+    return ax.lines[end]
+end
+
+"""
+    contourf!(ax, xs, ys, z; levels = 10)
+
+Filled contour bands. WASM-DIVERGENCE: rendered as a fine-grid heatmap
+quantized to the band midpoints (Makie's exact band polygons come from the
+Isoband C library — ccall, unavailable in the closed world). Band colors
+are exactly the heatmap colormap at the midpoints; boundaries are grid-
+quantized at `upsample`× the input resolution.
+"""
+function contourf!(ax::Axis, xs::AbstractVector{<:Real}, ys::AbstractVector{<:Real},
+                   z::AbstractMatrix{<:Real}; levels::Integer = 10, upsample::Integer = 8)
+    nx, ny = size(z)
+    flat = Vector{Float64}(undef, nx * ny)
+    for j in 1:ny, i in 1:nx
+        flat[i + (j - 1) * nx] = Float64(z[i, j])
+    end
+    return contourf!(ax, xs, ys, flat, Int64(nx), Int64(ny); levels, upsample)
+end
+
+function contourf!(ax::Axis, xs::AbstractVector{<:Real}, ys::AbstractVector{<:Real},
+                   z::AbstractVector{<:Real}, nx::Int64, ny::Int64;
+                   levels::Integer = 10, upsample::Integer = 8)
+    xv = _f64vec(xs)
+    yv = _f64vec(ys)
+    zv = _f64vec(z)
+    zmin = Inf
+    zmax = -Inf
+    for v in zv
+        v < zmin && (zmin = v)
+        v > zmax && (zmax = v)
+    end
+    nb = Int64(levels)
+    bw = (zmax - zmin) / Float64(nb)
+    u = Int64(upsample)
+    fx = (nx - 1) * u + 1
+    fy = (ny - 1) * u + 1
+    fine = Vector{Float64}(undef, fx * fy)
+    for j in 1:fy
+        gy = 1.0 + Float64(j - 1) / Float64(u)
+        j0 = Int64(floor(gy))
+        j0 >= ny && (j0 = ny - 1)
+        ty = gy - Float64(j0)
+        for i in 1:fx
+            gx = 1.0 + Float64(i - 1) / Float64(u)
+            i0 = Int64(floor(gx))
+            i0 >= nx && (i0 = nx - 1)
+            tx = gx - Float64(i0)
+            v00 = zv[i0 + (j0 - 1) * nx]
+            v10 = zv[i0 + 1 + (j0 - 1) * nx]
+            v01 = zv[i0 + j0 * nx]
+            v11 = zv[i0 + 1 + j0 * nx]
+            v = (1.0 - tx) * (1.0 - ty) * v00 + tx * (1.0 - ty) * v10 +
+                (1.0 - tx) * ty * v01 + tx * ty * v11
+            band = Int64(floor((v - zmin) / bw))
+            band < 0 && (band = 0)
+            band >= nb && (band = nb - 1)
+            fine[i + (j - 1) * fx] = zmin + (Float64(band) + 0.5) * bw
+        end
+    end
+    # cell-center grids spanning the data extent
+    fxs = Vector{Float64}(undef, fx)
+    for i in 1:fx
+        fxs[i] = xv[1] + (xv[end] - xv[1]) * Float64(i - 1) / Float64(fx - 1)
+    end
+    fys = Vector{Float64}(undef, fy)
+    for j in 1:fy
+        fys[j] = yv[1] + (yv[end] - yv[1]) * Float64(j - 1) / Float64(fy - 1)
+    end
+    return heatmap!(ax, fxs, fys, fine, fx, fy; colorrange = (zmin, zmax))
+end
+
 # ── data limits (consumed by C-008 autolimits) ──────────────────────────
 function _extrema_finite(v::Vector{Float64})
     lo = Inf

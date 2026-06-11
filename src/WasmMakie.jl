@@ -56,6 +56,7 @@ include("core/geometry.jl")
 include("vendor/ticks.jl")
 include("vendor/tick_format.jl")
 include("vendor/linear_ticks.jl")
+include("vendor/contour.jl")
 include("vendor/colormap_viridis.jl")
 include("vendor/colors.jl")
 include("core/text_extents.jl")
@@ -78,5 +79,6 @@ export hlines!, vlines!, hspan!, vspan!, ablines!, linesegments!, scatterlines!
 export stairs!, hist!, errorbars!, rangebars!, stem!, density!
 export band!, pie!, boxplot!, violin!
 export crossbar!, series!, waterfall!
+export contour!, contourf!
 
 end # module

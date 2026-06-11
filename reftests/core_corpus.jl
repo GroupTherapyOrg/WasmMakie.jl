@@ -219,8 +219,15 @@ const CORPUS = Scene2[
         (Makie, fig) -> Makie.series!(Makie.Axis(fig[1, 1]),
                                       [0.1 0.7 0.4 0.9; 0.9 0.2 0.6 0.1; 0.5 0.5 0.8 0.3];
                                       color = Makie.wong_colors()[1:3])),
-    # NOTE: "recipes: density" and "recipes: band" corpus scenes are deferred —
-    # the Makie versions lower to Band/mesh, which CanvasMakie draws after R-005.
+    Scene2("recipes: contour",
+        fig -> (xs = collect(0.0:0.25:2.0); ys = collect(0.0:0.25:2.0);
+                WasmMakie.contour!(WasmMakie.Axis(fig[1, 1]), xs, ys,
+                                   [sin(3x) * cos(3y) for x in xs, y in ys])),
+        (Makie, fig) -> (xs = collect(0.0:0.25:2.0); ys = collect(0.0:0.25:2.0);
+                Makie.contour!(Makie.Axis(fig[1, 1]), xs, ys,
+                               [sin(3x) * cos(3y) for x in xs, y in ys]))),
+    # NOTE: "recipes: density"/"band"/"contourf" corpus scenes are deferred —
+    # the Makie versions lower to Band/mesh (Isoband), drawable after R-005.
 ]
 
 end # module

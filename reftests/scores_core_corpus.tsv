@@ -11,6 +11,7 @@
 0.1466	core: image primaries
 0.1381	recipes: boxplot
 0.1371	recipes: pie
+0.1344	recipes: contour
 0.1202	recipes: stem + errorbars
 0.1186	recipes: grouped + stacked bars
 0.1179	core: single line
@@ -28,4 +29,4 @@
 0.0902	colorbar: heatmap-linked vertical
 0.076	core: barplot negative
 0.0	axis: hidden decorations + spines
-# CORE_PARITY passed=29/29 @ tier 0.30 (T-005-tightened; text scenes ~0.15)
+# CORE_PARITY passed=30/30 @ tier 0.30 (T-005-tightened; text scenes ~0.15)
