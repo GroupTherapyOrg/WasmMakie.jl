@@ -689,6 +689,47 @@ end
     @test trapped  # flips when WasmTarget fixes const-global vector materialization
 end
 
+
+# W-002 kernel: the COMPLETE figure pipeline, compiled to wasm
+function w002_figure()
+    fig = Figure(size = (300.0, 200.0))
+    ax = Axis(fig[1, 1])
+    lines!(ax, [0.0, 1.0, 2.0], [0.0, 1.0, 0.5])
+    render!(fig, WasmCtx())
+    return Int64(0)
+end
+
+@testset "full figure pipeline in wasm + command-stream differential (W-002)" begin
+    # host-side stream
+    fig = Figure(size = (300.0, 200.0))
+    ax = Axis(fig[1, 1])
+    lines!(ax, [0.0, 1.0, 2.0], [0.0, 1.0, 0.5])
+    r = RecordingCtx()
+    render!(fig, r)
+    host_json = to_json(r)
+
+    # wasm-side stream (compiled module, instrumented glue, node)
+    bytes = compile_with_canvas(Any[(w002_figure, (), "w002")])
+    @test length(bytes) > 100_000
+    dir = mktempdir()
+    wasm_path = joinpath(dir, "w002.wasm"); write(wasm_path, bytes)
+    glue_path = joinpath(dir, "glue.js"); write(glue_path, js_glue())
+    checker = joinpath(@__DIR__, "wasm_stream_check.js")
+    wasm_json = strip(read(`node $checker $wasm_path $glue_path w002`, String))
+
+    # THE GATE: normalized streams must be EQUAL (wasm_diffpass)
+    norm(j) = strip(read(`node -e "console.log(JSON.stringify(JSON.parse(process.argv[1])))" $j`, String))
+    @test norm(host_json) == norm(wasm_json)
+
+    # and the module draws real pixels in the browser
+    res = render_wasm(bytes, "w002"; width = 300, height = 200, probes = [(3, 3)])
+    if res === nothing
+        @test_skip "playwright unavailable"
+    else
+        @test res.pixels[(3, 3)] == (255, 255, 255, 255)
+    end
+end
+
 @testset "vendored optimize_ticks sanity (C-002)" begin
     ticks, lo, hi = WasmMakie.optimize_ticks(0.0, 10.0)
     @test ticks == [0.0, 5.0, 10.0]
