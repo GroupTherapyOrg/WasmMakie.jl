@@ -639,6 +639,56 @@ end
     end
 end
 
+
+# WTGAP probe (see draw/lines.jl): const-global empty Vector reference
+w001_const_global_probe() = Int64(length(WasmMakie.NO_DASH))
+
+# W-001 kernel: the full draw layer through WasmCtx, compiled by WasmTarget
+function w001_draw_program()
+    ctx = WasmCtx()
+    WasmMakie.set_fill_rgba(ctx, 255.0, 255.0, 255.0, 1.0)
+    WasmMakie.fill_rect(ctx, 0.0, 0.0, 200.0, 150.0)
+    pts = NTuple{2,Float64}[(20.0, 100.0), (80.0, 40.0), (140.0, 90.0)]
+    WasmMakie.draw_lines!(ctx, pts, true, 0.0, 0.0, 1.0, 1.0, 6.0,
+                          Float64[], Int64(0), Int64(0), 10.0)
+    WasmMakie.draw_marker_circle!(ctx, 170.0, 40.0, 24.0, 0.0, 0.0, 24.0,
+                                  1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
+    WasmMakie.draw_poly_rect!(ctx, 20.0, 120.0, 60.0, 20.0,
+                              0.0, 0.5, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+                              0.0, Float64[], Int64(0), Int64(0), 4.0)
+    pixels = NTuple{4,Float64}[(1.0, 0.0, 1.0, 1.0), (0.0, 1.0, 1.0, 1.0)]
+    WasmMakie.draw_image_scaled!(ctx, pixels, Int64(2), Int64(1), 150.0, 140.0, 40.0, -20.0, false)
+    return Int64(0)
+end
+
+@testset "draw layer compiles + draws in wasm (W-001)" begin
+    bytes = compile_with_canvas(Any[(w001_draw_program, (), "w001")])
+    @test length(bytes) > 1000
+    res = render_wasm(bytes, "w001"; width = 200, height = 150,
+                      probes = [(3, 3), (40, 80), (170, 40), (50, 130), (155, 125), (185, 125)])
+    if res === nothing
+        @test_skip "playwright unavailable"
+    else
+        @test res.pixels[(3, 3)] == (255, 255, 255, 255)      # background
+        @test res.pixels[(40, 80)] == (0, 0, 255, 255)        # blue polyline
+        @test res.pixels[(170, 40)] == (255, 0, 0, 255)       # circle marker
+        @test res.pixels[(50, 130)] == (0, 128, 0, 255)       # poly rect
+        @test res.pixels[(155, 125)] == (255, 0, 255, 255)    # image px 1
+        @test res.pixels[(185, 125)] == (0, 255, 255, 255)    # image px 2
+    end
+
+    # WTGAP regression guard: const-global empty Vector still traps — when
+    # this STOPS trapping, the gap is fixed upstream and no_dash() can revert
+    bytes2 = compile_with_canvas(Any[(w001_const_global_probe, (), "kcg")])
+    trapped = try
+        render_wasm(bytes2, "kcg"; width = 20, height = 20, probes = [(2, 2)]) !== nothing
+        false
+    catch
+        true
+    end
+    @test trapped  # flips when WasmTarget fixes const-global vector materialization
+end
+
 @testset "vendored optimize_ticks sanity (C-002)" begin
     ticks, lo, hi = WasmMakie.optimize_ticks(0.0, 10.0)
     @test ticks == [0.0, 5.0, 10.0]

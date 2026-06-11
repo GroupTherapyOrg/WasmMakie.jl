@@ -8,7 +8,11 @@
 #
 # Closed-world discipline applies to this file: concrete types only.
 
-const NO_DASH = Float64[]  # empty pattern = solid
+const NO_DASH = Float64[]  # empty pattern = solid (host-side use only)
+# WTGAP(pending, W-003): referencing a const non-isbits global (this empty
+# Vector) from WasmTarget-compiled code traps `unreachable` at runtime —
+# locally-constructed empties work. Compiled paths call no_dash() instead.
+@inline no_dash() = Float64[]
 
 # Makie linecap ints: 0 butt, 1 square, 2 round → ops table: 0 butt, 1 round, 2 square
 _canvas_linecap(cap::Int64)::Int64 = cap == 1 ? Int64(2) : (cap == 2 ? Int64(1) : Int64(0))

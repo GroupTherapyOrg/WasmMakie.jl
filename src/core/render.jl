@@ -133,7 +133,7 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
         if kind == PLOT_LINES
             p = ax.lines[idx]
             pts = _project_xy(t, p.x, p.y)
-            pattern = p.linestyle == LINESTYLE_SOLID ? NO_DASH :
+            pattern = p.linestyle == LINESTYLE_SOLID ? no_dash() :
                       p.linestyle == LINESTYLE_DASH ? linestyle_to_pattern([0.0, 3.0, 4.0], p.linewidth) :
                       p.linestyle == LINESTYLE_DOT ? linestyle_to_pattern([0.0, 1.0, 2.0], p.linewidth) :
                       linestyle_to_pattern([0.0, 3.0, 4.0, 5.0, 6.0], p.linewidth)
@@ -172,7 +172,7 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
                 draw_poly_rect!(ctx, cx - 0.5 * barw, min(y0, ytop), barw, abs(y0 - ytop),
                                 p.color[1], p.color[2], p.color[3], p.color[4],
                                 p.strokecolor[1], p.strokecolor[2], p.strokecolor[3], p.strokecolor[4],
-                                p.strokewidth, NO_DASH, THEME_LINECAP, THEME_JOINSTYLE, 4.0)
+                                p.strokewidth, no_dash(), THEME_LINECAP, THEME_JOINSTYLE, 4.0)
             end
         elseif kind == PLOT_HEATMAP
             p = ax.heatmaps[idx]
