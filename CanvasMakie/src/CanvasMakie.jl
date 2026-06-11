@@ -28,6 +28,7 @@ import PNGFiles
 include("render.jl")
 include("screen.jl")
 include("lines.jl")
+include("scatter.jl")
 
 export Screen
 

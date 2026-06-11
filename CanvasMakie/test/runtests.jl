@@ -144,3 +144,92 @@ end
         @test_throws Exception Makie.colorbuffer(CanvasMakie.Screen(scene6))
     end
 end
+
+@testset "scatter markers render (D-003)" begin
+    if !HAVE_RENDERER
+        @test_skip "headless renderer unavailable"
+    else
+        WHITE = RGBA{N0f8}(1, 1, 1, 1)
+        RED = RGBA{N0f8}(1, 0, 0, 1)
+        BLUE = RGBA{N0f8}(0, 0, 1, 1)
+        pxscene() = Scene(size = (100, 100), backgroundcolor = :white, camera = campixel!)
+        shot(scene) = Makie.colorbuffer(CanvasMakie.Screen(scene))
+
+        # Marker geometry ground truth measured from real CairoMakie 0.15.11
+        # (the parity oracle): :circle and :rect are scaled BezierPaths —
+        # circle r ≈ 0.3525·markersize; rect half-width ≈ 6.6 at markersize 24
+        # (extent 44–57); 45°-rotated rect half-diagonal ≈ 9.5 (extent 41–60).
+        blueish(px) = Float64(ColorTypes.blue(px)) > 0.6 && Float64(ColorTypes.red(px)) < 0.4
+
+        # default circle marker, exact fill color in the middle, white outside
+        s1 = pxscene()
+        scatter!(s1, [50.0], [50.0]; color = :red, markersize = 20)
+        img1 = shot(s1)
+        @test img1[50, 50] == RED
+        @test img1[50, 46] == RED            # r=4, solidly inside r≈7.05
+        @test img1[50, 35] == WHITE          # outside
+        @test img1[30, 50] == WHITE
+
+        # rect marker (half ≈ 6.6 at ms 24): inside center, outside the corners
+        s2 = pxscene()
+        scatter!(s2, [50.0], [50.0]; color = :blue, marker = :rect, markersize = 24)
+        img2 = shot(s2)
+        @test img2[50, 50] == BLUE
+        @test img2[45, 45] == BLUE           # |5,5| inside half 6.6
+        @test img2[42, 42] == WHITE          # |8,8| outside
+        @test img2[50, 59] == WHITE          # dx=9 outside half 6.6
+        @test img2[50, 65] == WHITE
+
+        # rotation: the diamond reaches dx=8 on the axis (≤ 9.5) where the
+        # unrotated square (half 6.6) does not — and vice versa at |6,6|·√2
+        s3 = pxscene()
+        scatter!(s3, [50.0], [50.0]; color = :blue, marker = :rect, markersize = 24,
+                 rotation = pi / 4)
+        img3 = shot(s3)
+        @test blueish(img3[50, 58])          # dx≈7.5: inside diamond
+        @test blueish(img3[50, 59])          # dx≈8.5: still inside diamond…
+        @test !blueish(img2[50, 59])         # …but outside the unrotated square
+        @test img3[44, 44] == WHITE          # |6,6| sum 12 > 9.5: outside diamond
+        @test img3[50 - 11, 50 + 11] == WHITE
+
+        # BezierPath marker (:utriangle): center filled, region below apex white
+        s4 = pxscene()
+        scatter!(s4, [50.0], [50.0]; color = :red, marker = :utriangle, markersize = 30)
+        img4 = shot(s4)
+        @test img4[50, 50] == RED
+        @test img4[35, 35] == WHITE          # above-left of the triangle
+        @test img4[35, 65] == WHITE          # above-right
+
+        # marker_offset shifts in markerspace
+        s5 = pxscene()
+        scatter!(s5, [50.0], [50.0]; color = :red, markersize = 16,
+                 marker_offset = Makie.Vec2f(25, 0))
+        img5 = shot(s5)
+        @test img5[50, 75] == RED
+        @test img5[50, 50] == WHITE
+
+        # per-point colors (arrays are fine for scatter, unlike lines)
+        s6 = pxscene()
+        scatter!(s6, [30.0, 70.0], [50.0, 50.0]; color = [:red, :blue], markersize = 16)
+        img6 = shot(s6)
+        @test img6[50, 30] == RED
+        @test img6[50, 70] == BLUE
+
+        # strokewidth + strokecolor ring around the fill.
+        # Ground truth measured from real CairoMakie 0.15.11: :circle is a
+        # BezierPath of radius 0.3525 (NOT 0.5), so markersize 20 → r ≈ 7.05,
+        # and the 4px pen is NOT scaled by the marker matrix → ring ≈ [5, 9].
+        s7 = pxscene()
+        scatter!(s7, [50.0], [50.0]; color = :white, strokecolor = :blue,
+                 strokewidth = 4, markersize = 20)
+        img7 = shot(s7)
+        @test img7[50, 50] == WHITE          # fill
+        @test img7[50, 43] == BLUE           # stroke ring at r≈7
+        @test img7[50, 38] == WHITE          # outside the ring (r=12)
+
+        # Char markers are a loud error until the text engine (D-006)
+        s8 = pxscene()
+        scatter!(s8, [50.0], [50.0]; marker = 'x', markersize = 20)
+        @test_throws Exception shot(s8)
+    end
+end
