@@ -33,11 +33,15 @@ abstract-element vectors, no ccall, no IO in compiled paths.
 module WasmMakie
 
 # Stories land in this order (see WASMMAKIE_PLAN.md):
-#   ops.jl   — the canvas ops table (F-002)
+#   ops.jl   — the canvas ops table (F-002) ✓
 #   ctx.jl   — WasmCtx / RecordingCtx (F-003)
 #   draw/    — shared draw layer (M1)
 #   core/    — static typed Makie API (M2)
 #   vendor/  — vendored leaf algorithms (M2)
 #   embed.jl — embedding contract (M7)
+
+include("ops.jl")
+
+export CANVAS_OPS, import_specs, js_glue
 
 end # module
