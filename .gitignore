@@ -1,0 +1,7 @@
+Manifest.toml
+CanvasMakie/Manifest.toml
+reftests/reference_images/
+reftests/recorded/
+node_modules/
+*.wasm
+.DS_Store
