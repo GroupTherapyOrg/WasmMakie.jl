@@ -53,6 +53,19 @@ end
 remove_billboard(x) = x
 remove_billboard(b::Makie.Billboard) = b.rotation
 
+# Translated verbatim from CairoMakie best_font (utils.jl)
+function best_font(c::Char, font = Makie.defaultfont())
+    if Base.@lock font.lock Makie.FreeType.FT_Get_Char_Index(font, c) == 0
+        for afont in Makie.alternativefonts()
+            if Base.@lock afont.lock Makie.FreeType.FT_Get_Char_Index(afont, c) != 0
+                return afont
+            end
+        end
+        return Makie.defaultfont()
+    end
+    return font
+end
+
 _is_degenerate(m::Makie.Mat2f) =
     !all(isfinite, m) || abs(m[1, 1] * m[2, 2] - m[1, 2] * m[2, 1]) < 1.0e-12
 
@@ -144,7 +157,19 @@ function draw_atomic(rctx::WasmMakie.RecordingCtx, scene::Scene, plot::Makie.Sca
             WasmMakie.draw_marker_path!(rctx, x, y, m11, m21, m12, m22, codes, coords,
                 fr, fg, fb, fa, sr, sg, sb, sa, swidth)
         elseif m isa Char
-            error("CanvasMakie: Char markers need glyph rendering (plan D-006)")
+            font = best_font(m, Makie.sv_getindex(attr[:font][], i))
+            # centering translated from CairoMakie draw_marker(::Char): shift
+            # the baseline anchor so the ink bbox center lands on the position
+            charextent = Makie.FreeTypeAbstraction.get_extent(font, m)
+            inkbb = Makie.FreeTypeAbstraction.inkboundingbox(charextent)
+            centering_offset = Makie.origin(inkbb) .+ 0.5f0 .* Makie.widths(inkbb)
+            char_offset = jl_mat * Makie.Vec2d(centering_offset[1], -centering_offset[2])
+            gi = Base.@lock font.lock Makie.FreeType.FT_Get_Char_Index(font, m)
+            codes, coords = glyph_encoded_path(font, gi)
+            isempty(codes) || WasmMakie.draw_marker_path!(rctx,
+                x - Float64(char_offset[1]), y - Float64(char_offset[2]),
+                m11, m21, m12, m22, codes, coords,
+                fr, fg, fb, fa, sr, sg, sb, sa, swidth)
         else
             error("CanvasMakie: marker $(typeof(m)) not implemented yet")
         end

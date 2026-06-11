@@ -273,10 +273,17 @@ end
         @test img7[50, 43] == BLUE           # stroke ring at r≈7
         @test img7[50, 38] == WHITE          # outside the ring (r=12)
 
-        # Char markers are a loud error until the text engine (D-006)
+        # Char markers (D-008 round 2): glyph drawn ink-centered on the point
         s8 = pxscene()
-        scatter!(s8, [50.0], [50.0]; marker = 'x', markersize = 20)
-        @test_throws Exception shot(s8)
+        scatter!(s8, [50.0], [50.0]; marker = 'x', markersize = 40, color = :black)
+        img8 = shot(s8)
+        dark = [(r, c) for r in 1:100, c in 1:100 if Float64(ColorTypes.red(img8[r, c])) < 0.5]
+        @test !isempty(dark)
+        rows = extrema(first.(dark)); cols = extrema(last.(dark))
+        # ink bbox is centered on (50,50) within a couple of px
+        @test abs((rows[1] + rows[2]) / 2 - 50) <= 2.5
+        @test abs((cols[1] + cols[2]) / 2 - 50) <= 2.5
+        @test 10 <= rows[2] - rows[1] <= 40   # plausibly x-sized at ms=40
     end
 end
 

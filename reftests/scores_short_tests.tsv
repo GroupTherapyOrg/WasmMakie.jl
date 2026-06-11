@@ -1,16 +1,13 @@
 # status	score	title	detail
-error	-	char marker scenespace	CanvasMakie: Char markers need glyph rendering (plan D-006)
-error	-	scatter rotation	CanvasMakie: Char markers need glyph rendering (plan D-006)
 error	-	meshscatter colors, Axis3	CanvasMakie: draw_atomic not implemented yet for Plot
 error	-	transparent mesh texture	CanvasMakie: draw_atomic not implemented yet for Plot
 error	-	Unequal x and y sizes in surface	CanvasMakie: draw_atomic not implemented yet for Plot
 error	-	Matrices of data in surfaces	CanvasMakie: draw_atomic not implemented yet for Plot
 error	-	heatmaps & surface	CanvasMakie: draw_atomic not implemented yet for Plot
 error	-	barplot lowclip highclip nan_color	TypeError: in typeassert, expected Vector{ColorTypes.RGBA{Float32}}, got a value of type Base.RefValue{Any}
-error	-	redisplay after closing screen	StackOverflowError:
 error	-	colorbuffer for axis	CanvasMakie: draw_atomic not implemented yet for Plot
 error	-	matcap	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	StructArrays compat	StackOverflowError:
+error	-	StructArrays compat	CanvasMakie: draw_atomic not implemented yet for Plot
 recorded	0.0649	contour levels and colors	
 recorded	0.0312	contour small x or y	
 recorded	0.0224	Axis Hints	
@@ -24,8 +21,11 @@ recorded	0.0108	streamplot with func
 recorded	0.0108	multipoly with multi strokes	
 recorded	0.0107	Colorbar	
 recorded	0.0095	scene visibility	
+recorded	0.0091	char marker scenespace	
 recorded	0.0091	fast pixel marker	
+recorded	0.0087	scatter rotation	
 recorded	0.0077	thick arc	
+recorded	0.006	redisplay after closing screen	
 recorded	0.0001	lines linesegments width test	
 recorded	0.0	Scene backgroundcolor	
-# REFPASS passed=16/29 scored=17 recorded=17 errored=12 unsupported=0 rate=0.552
+# REFPASS passed=19/29 scored=20 recorded=20 errored=9 unsupported=0 rate=0.655

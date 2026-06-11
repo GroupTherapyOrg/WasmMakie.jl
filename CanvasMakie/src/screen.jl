@@ -56,6 +56,15 @@ end
 
 Makie.backend_showable(::Type{Screen}, ::MIME"image/png") = true
 
+# Required by Makie's display machinery (display(fig), Stepper, record) —
+# without this method the generic display recurses to a StackOverflow.
+# Image backend: actual rendering happens in colorbuffer/backend_show
+# (mirrors CairoMakie's non-interactive display).
+function Base.display(screen::Screen, scene::Scene; connect = false, figure = nothing, screen_config...)
+    Makie.push_screen!(scene, screen)
+    return screen
+end
+
 function Makie.backend_show(screen::Screen, io::IO, ::MIME"image/png", scene::Scene)
     write(io, render_scene_png(screen))
     return screen
