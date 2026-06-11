@@ -48,17 +48,39 @@ function _scientific_label_precision(xs)
     return _plain_label_precision(ys)
 end
 
-_replace_leading_hyphen(s::AbstractString) = startswith(s, '-') ? MINUS_SIGN * SubString(s, 2) : String(s)
+# WTGAP(pending): both const-global String references and String*SubString
+# concatenation trap in wasm — build the minus-prefixed string from bytes
+# (the proven overlay materialization pattern).
+function _prepend_minus(rest_from::AbstractString, skip_first::Bool)
+    out = UInt8[0xe2, 0x88, 0x92]  # U+2212 MINUS_SIGN
+    cu = codeunits(rest_from)
+    i = skip_first ? 2 : 1
+    while i <= length(cu)
+        push!(out, cu[i])
+        i += 1
+    end
+    return String(out)
+end
 
-function _format_plain_label(x::AbstractFloat, precision::Integer; minus_sign::Bool = true)
+_replace_leading_hyphen(s::AbstractString) = startswith(s, '-') ? _prepend_minus(s, true) : String(s)
+
+# WTGAP(pending): explicit kwarg-forwarding calls to this function trap in
+# wasm (defaulted calls are fine) — positional signature instead.
+function _format_plain_label(x::AbstractFloat, precision::Integer, minus_sign::Bool = true)
     s = Base.Ryu.writefixed(x, precision)
     return minus_sign ? _replace_leading_hyphen(s) : s
 end
 
 "Format `xs` as plain decimal strings with a uniform precision (Makie parity)."
+# WTGAP(pending): comprehensions whose kernel returns Strings misexecute in
+# wasm (the map-kernel deep gap) — explicit loops throughout this file.
 function format_ticks_plain(xs::AbstractArray{<:AbstractFloat}; minus_sign::Bool = true)
     precision = _plain_label_precision(xs)
-    return [_format_plain_label(x, precision; minus_sign) for x in xs]
+    out = String[]
+    for i in eachindex(xs)
+        push!(out, _format_plain_label(xs[i], precision, minus_sign))
+    end
+    return out
 end
 
 function _split_scientific(x::AbstractFloat, precision::Integer)
@@ -92,22 +114,42 @@ magnitude. WASM-DIVERGENCE: returns `TickLabel`s, not RichText.
 """
 function format_ticks_auto(xs::AbstractArray{<:AbstractFloat})
     if _pick_label_style(xs) === :plain
-        return [TickLabel(s, "") for s in format_ticks_plain(xs)]
+        plain = format_ticks_plain(xs)
+        out = TickLabel[]
+        for i in eachindex(plain)
+            push!(out, TickLabel(plain[i], ""))
+        end
+        return out
     end
 
     precision = _scientific_label_precision(xs)
-    pairs = Union{Nothing,Tuple{String,Int}}[
-        iszero(x) ? nothing : (p = _split_scientific(x, precision); (String(p[1]), p[2]))
-            for x in xs
-    ]
+    pairs = Union{Nothing,Tuple{String,Int}}[]
+    for x in xs
+        if iszero(x)
+            push!(pairs, nothing)
+        else
+            p = _split_scientific(x, precision)
+            push!(pairs, (String(p[1]), p[2]))
+        end
+    end
 
-    can_strip = all(p -> p === nothing || _has_only_zero_fraction(p[1]), pairs)
+    can_strip = true
+    for p in pairs
+        if p !== nothing && !_has_only_zero_fraction(p[1])
+            can_strip = false
+        end
+    end
 
-    return map(pairs) do p
-        p === nothing && return TickLabel("0", "")
-        base, exponent = p
-        base_clean = can_strip ? _strip_trailing_zeros(base) : base
-        exp_str = exponent < 0 ? MINUS_SIGN * string(-exponent) : string(exponent)
-        return TickLabel(base_clean * "×10", exp_str)
-    end::Vector{TickLabel}
+    out = TickLabel[]
+    for p in pairs
+        if p === nothing
+            push!(out, TickLabel("0", ""))
+        else
+            base, exponent = p
+            base_clean = can_strip ? _strip_trailing_zeros(base) : base
+            exp_str = exponent < 0 ? _prepend_minus(string(-exponent), false) : string(exponent)
+            push!(out, TickLabel(base_clean * "×10", exp_str))
+        end
+    end
+    return out
 end

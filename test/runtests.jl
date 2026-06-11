@@ -730,6 +730,43 @@ end
     end
 end
 
+
+function w005_scatter()
+    fig = Figure(size = (300.0, 200.0)); ax = Axis(fig[1, 1])
+    scatter!(ax, [0.0, 1.0, 2.0], [0.5, 1.5, 1.0]; markersize = 14.0, color = :red)
+    scatter!(ax, [0.5, 1.5], [1.2, 0.8]; marker = :rect, markersize = 10.0)
+    render!(fig, WasmCtx()); return Int64(0)
+end
+function w005_bar()
+    fig = Figure(size = (300.0, 200.0))
+    ax = Axis(fig[1, 1])
+    barplot!(ax, [1.0, 2.0, 3.0], [2.0, -1.0, 3.0]; color = :orange)
+    render!(fig, WasmCtx()); return Int64(0)
+end
+
+@testset "per-plot-type wasm differentials (W-005: scatter, bar)" begin
+    norm(j) = strip(read(`node -e "console.log(JSON.stringify(JSON.parse(process.argv[1])))" $j`, String))
+    checker = joinpath(@__DIR__, "wasm_stream_check.js")
+    dir = mktempdir()
+    glue_path = joinpath(dir, "glue.js"); write(glue_path, js_glue())
+
+    for (name, kernel, builder) in [
+            ("scatter", w005_scatter, ax -> begin
+                scatter!(ax, [0.0, 1.0, 2.0], [0.5, 1.5, 1.0]; markersize = 14.0, color = :red)
+                scatter!(ax, [0.5, 1.5], [1.2, 0.8]; marker = :rect, markersize = 10.0)
+            end),
+            ("bar", w005_bar, ax -> barplot!(ax, [1.0, 2.0, 3.0], [2.0, -1.0, 3.0]; color = :orange))]
+        fig = Figure(size = (300.0, 200.0))
+        builder(Axis(fig[1, 1]))
+        r = RecordingCtx(); render!(fig, r)
+        bytes = compile_with_canvas(Any[(kernel, (), "k")])
+        wp = joinpath(dir, name * ".wasm"); write(wp, bytes)
+        wasm_json = strip(read(`node $checker $wp $glue_path k`, String))
+        @test startswith(wasm_json, "[")
+        @test norm(to_json(r)) == norm(wasm_json)
+    end
+end
+
 @testset "vendored optimize_ticks sanity (C-002)" begin
     ticks, lo, hi = WasmMakie.optimize_ticks(0.0, 10.0)
     @test ticks == [0.0, 5.0, 10.0]
