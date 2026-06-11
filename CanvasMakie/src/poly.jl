@@ -45,13 +45,17 @@ function _project_poly_points(scene::Scene, poly, space::Symbol, points, model::
 end
 
 # ── color/style extraction ──────────────────────────────────────────────
+# Translated from CairoMakie to_cairo_color (utils.jl): numbers AND color
+# vectors route through assemble_colors (lowclip/highclip/nan_color aware);
+# everything else picks up the plot's alpha. Patterns are loud until R-005.
 function _poly_color(color, poly)
     color isa Makie.AbstractPattern &&
         error("CanvasMakie: pattern fills on poly not implemented yet (plan R-005)")
-    if color isa Union{Real, AbstractVector{<:Real}}
-        return Makie.numbers_to_colors(color, poly)
+    if color isa Union{AbstractVector, Number}
+        cmap = Makie.assemble_colors(color, Makie.Observable(color), poly)
+        return Makie.to_color(Makie.to_value(cmap))
     end
-    return Makie.to_color(color)
+    return Makie.to_color((color, Makie.to_value(poly.alpha)))
 end
 
 function _poly_style(poly)

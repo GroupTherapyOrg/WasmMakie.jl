@@ -1,0 +1,48 @@
+# status	score	title	detail
+error	-	scatter Billboard and transform_marker for image markers	CanvasMakie: marker Matrix{ColorTypes.RGBA{FixedPointNumbers.N0f8}} not implemented yet
+error	-	scatter image markers	CanvasMakie: marker Matrix{ColorTypes.RGBA{FixedPointNumbers.N0f8}} not implemented yet
+error	-	scatter marker_offset 2D	CanvasMakie: marker Matrix{ColorTypes.RGB{Float32}} not implemented yet
+error	-	scatter marker_offset 2D with billboarded rotation	CanvasMakie: marker Matrix{ColorTypes.RGB{Float32}} not implemented yet
+recorded	0.4348	Lines from outside	
+recorded	0.1562	Subpixel Scatter	
+recorded	0.1234	line color interpolation with clipping	
+recorded	0.0476	scatter Billboard and transform_marker for BezierPath markers	
+recorded	0.0446	scatter Billboard and transform_marker for Char markers	
+recorded	0.0349	BezierPath marker stroke	
+recorded	0.0316	scatter Billboard and transform_marker for Circle markers	
+recorded	0.0308	barplot with TeX-ed labels	
+recorded	0.0296	scatter Billboard and transform_marker for Rect markers	
+recorded	0.0285	scatter with stroke	
+recorded	0.0214	lines and linestyles	
+recorded	0.019	complex_bezier_markers	
+recorded	0.0178	marke glyph alignment	
+recorded	0.0155	scatter rotations	
+recorded	0.0142	Linecaps and joinstyles	
+recorded	0.0109	BezierPath markers	
+recorded	0.0103	scatters	
+recorded	0.0097	basic polygon shapes	
+recorded	0.0077	polygon markers	
+recorded	0.0076	Miter Limit	
+recorded	0.0063	Line loops	
+recorded	0.0059	Scatter fonts	
+recorded	0.0052	Miter Joints for line rendering	
+recorded	0.004	lines with gaps	
+recorded	0.0025	Anisotropic markers	
+skipped	-	Surface with NaN points	skip pattern: mesh(
+skipped	-	Surface invert_normals	skip pattern: surface(
+skipped	-	Voxel - texture mapping	skip pattern: voxel
+skipped	-	Voxel uvs	skip pattern: voxel
+skipped	-	Voxel - colors and colormap	skip pattern: voxel
+skipped	-	Voxel - lowclip and highclip	skip pattern: voxel
+skipped	-	Voxel - gap attribute	skip pattern: voxel
+skipped	-	Plot transform overwrite	skip pattern: mesh!
+skipped	-	uv_transform	skip pattern: mesh(
+skipped	-	per element uv_transform	skip pattern: mesh(
+skipped	-	Scatter with FastPixel	skip pattern: Axis3
+skipped	-	Reverse image, heatmap and surface axes	skip pattern: surface(
+skipped	-	meshscatter + scatter marker conversions	skip pattern: mesh!
+skipped	-	meshscatter + scatter marker conversions with model	skip pattern: mesh!
+skipped	-	scatter marker_offset 3D with rotation	skip pattern: LScene
+skipped	-	transformed surface	skip pattern: meshscatter
+unsupported	-	scatter with glow	no reference image for this backend/version
+# REFPASS passed=22/30 scored=25 recorded=25 errored=4 unsupported=1 rate=0.733

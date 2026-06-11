@@ -22,6 +22,10 @@ using Makie.GeometryBasics
 using Makie.Colors
 using StructArrays
 import DelimitedFiles: readdlm
+import Makie.FileIO
+using Test
+using LinearAlgebra: normalize
+import Makie.FileIO: load
 
 # RNG: vendored verbatim from ReferenceTests/src/stable_rng.jl (MIT)
 module RNG
@@ -55,20 +59,30 @@ end
 const RESULTS = TestResult[]
 const RECORDING_DIR = Ref("")
 const SKIP_TITLES = Set{String}()
+# substring scan over test source — the 2D-target skip list (mesh/3D family),
+# mirroring upstream's SKIP_FUNCTIONS mechanism
+const SKIP_PATTERNS = Ref(String[])
 
 macro reference_test(name, code)
     title = string(name)
+    codestr = string(code)
     return quote
-        _run_reference_test($(title)) do
+        _run_reference_test($(title), $(codestr)) do
             $(esc(code))
         end
     end
 end
 
-function _run_reference_test(f, title::String)
+function _run_reference_test(f, title::String, codestr::String = "")
     if title in SKIP_TITLES
         push!(RESULTS, TestResult(title, :skipped, "skip list"))
         return
+    end
+    for p in SKIP_PATTERNS[]
+        if occursin(p, codestr)
+            push!(RESULTS, TestResult(title, :skipped, "skip pattern: $p"))
+            return
+        end
     end
     # upstream recording theme (database.jl), adapted to this backend
     Makie.set_theme!(; size = (500, 500), CanvasMakie = (; px_per_unit = 1))

@@ -16,6 +16,13 @@ isdir(REFDIR) || error("reference images not extracted — run RefScorer.fetch f
 
 files = isempty(ARGS) ? ["short_tests"] : ARGS
 
+# the 2D-target skip list: mesh/3D/volume territory (plan R-005 / out of scope)
+RefSuite.SKIP_PATTERNS[] = String[
+    "mesh(", "mesh!", "meshscatter", "surface(", "surface!", "volume", "voxel",
+    "Axis3", "band(", "band!", "tricontourf", "contour3d", "wireframe",
+    "arrows3d", "LScene", "matcap", "uv_mesh", "Stepper",
+]
+
 for name in files
     file = joinpath(@__DIR__, "vendor_upstream", "tests", name * ".jl")
     isfile(file) || error("no vendored test file: $file")

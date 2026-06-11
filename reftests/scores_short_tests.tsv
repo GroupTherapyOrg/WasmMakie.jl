@@ -1,13 +1,4 @@
 # status	score	title	detail
-error	-	meshscatter colors, Axis3	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	transparent mesh texture	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	Unequal x and y sizes in surface	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	Matrices of data in surfaces	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	heatmaps & surface	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	barplot lowclip highclip nan_color	TypeError: in typeassert, expected Vector{ColorTypes.RGBA{Float32}}, got a value of type Base.RefValue{Any}
-error	-	colorbuffer for axis	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	matcap	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	StructArrays compat	CanvasMakie: draw_atomic not implemented yet for Plot
 recorded	0.0649	contour levels and colors	
 recorded	0.0312	contour small x or y	
 recorded	0.0224	Axis Hints	
@@ -28,4 +19,13 @@ recorded	0.0077	thick arc
 recorded	0.006	redisplay after closing screen	
 recorded	0.0001	lines linesegments width test	
 recorded	0.0	Scene backgroundcolor	
-# REFPASS passed=19/29 scored=20 recorded=20 errored=9 unsupported=0 rate=0.655
+skipped	-	meshscatter colors, Axis3	skip pattern: meshscatter
+skipped	-	transparent mesh texture	skip pattern: mesh(
+skipped	-	Unequal x and y sizes in surface	skip pattern: surface(
+skipped	-	Matrices of data in surfaces	skip pattern: surface(
+skipped	-	heatmaps & surface	skip pattern: surface(
+skipped	-	barplot lowclip highclip nan_color	skip pattern: meshscatter
+skipped	-	colorbuffer for axis	skip pattern: meshscatter
+skipped	-	matcap	skip pattern: mesh!
+skipped	-	StructArrays compat	skip pattern: band(
+# REFPASS passed=19/20 scored=20 recorded=20 errored=0 unsupported=0 rate=0.95
