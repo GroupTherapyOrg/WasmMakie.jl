@@ -5,7 +5,7 @@ import Base64 as _B64check
 
 @testset "ops table (F-002)" begin
     ops = WasmMakie.CANVAS_OPS
-    @test length(ops) == 63
+    @test length(ops) == 65
     @test allunique([op.name for op in ops])
     # Only Float64/Int64 cross the import boundary
     for op in ops
@@ -60,7 +60,7 @@ end
     write(specs_path, specs_json)
     checker = joinpath(@__DIR__, "js_glue_check.js")
     out = read(`node $checker $glue_path $specs_path`, String)
-    @test occursin("JS GLUE OK: 63 ops", out)
+    @test occursin("JS GLUE OK: 65 ops", out)
 end
 
 @testset "ctx duality (F-003)" begin
@@ -140,7 +140,7 @@ end
     @test occursin("\"arc\":[\"F64\",\"F64\",\"F64\",\"F64\",\"F64\",\"I64\"]", specs)
     @test occursin("\"begin_path\":[]", specs)
     nops = read(`node -e "console.log(Object.keys(JSON.parse(process.argv[1])).length)" $specs`, String)
-    @test strip(nops) == "63"
+    @test strip(nops) == "65"
 
     # Record a program exercising every conversion class, then replay it
     # through the REAL glue in node and assert the resulting canvas calls.
@@ -934,17 +934,17 @@ end
     @test g.descent ≈ 0.2
     @test g.left ≈ 0.04
     @test g.right ≈ 0.51
-    # one miss = set_font + clear + push + 5 measures = 8 ops
-    @test length(r.commands) == 8
+    # one miss = set_font + clear + push + 7 measures = 10 ops
+    @test length(r.commands) == 10
 
     # cache hit: no new ops, identical object semantics
     g2 = glyph_extent!(p, r, Int64(77), Int64(0), Int64(400), Int64(0))
-    @test length(r.commands) == 8
+    @test length(r.commands) == 10
     @test g2.hadvance == g.hadvance
     # different face = new entry
     glyph_extent!(p, r, Int64(77), Int64(0), Int64(700), Int64(0))
     @test length(p.keys) == 2
-    @test length(r.commands) == 16
+    @test length(r.commands) == 20
 
     # key packing is collision-free across the fields
     ks = [WasmMakie._extent_key(cp, fam, wt, it)
@@ -988,6 +988,89 @@ end
         @test res.pixels[(60, 2)] == (255, 255, 255, 255) # and ≤ ~58px
         @test res.pixels[(110, 2)] == (255, 255, 255, 255)
     end
+end
+
+# T-003 wasm kernel (top-level: closures don't compile)
+function k_t003_layout()
+    p = ExtentProvider()
+    ctx = WasmCtx()
+    cps = Int64[72, 105, 10, 87, 111, 114, 108, 100]  # "Hi\nWorld"
+    gc = glyph_collection!(p, ctx, cps, Int64(0), Int64(400), Int64(0),
+                           14.0, 0.5, -1.0, 1.0, -1.0, 0.0, 0.0)
+    return Int64(length(gc.glyphs))
+end
+
+@testset "vendored text layouting (T-003)" begin
+    # oracles below are hand-derived from the RecordingCtx stand-in ratios:
+    # advance 0.55/unit, font ascent 0.9/unit, font descent 0.25/unit
+    # → at scale 10: adv 5.5, ascender 9.0, descender −2.5, lineheight 11.5
+    r = RecordingCtx()
+    p = ExtentProvider()
+    s = 10.0
+
+    # alignment resolution mirrors upstream halign2num/valign2num
+    @test halign2num(:left) == 0.0 && halign2num(:center) == 0.5 && halign2num(:right) == 1.0
+    @test valign2num(:top) == 1.0 && valign2num(:bottom) == 0.0 && valign2num(:baseline) == -1.0
+    @test halign2num(0.25) == 0.25
+
+    # single line, left/baseline: origins on the baseline anchor
+    gc = glyph_collection!(p, r, Int64[72, 105], Int64(0), Int64(400), Int64(0),
+                           s, 0.0, -1.0, 1.0, -1.0, 0.0, 0.0)
+    @test gc.glyphs == [72, 105]
+    @test gc.origins_x ≈ [0.0, 5.5]
+    @test gc.origins_y ≈ [0.0, 0.0]
+
+    # right/bottom: shifted left by maxwidth, baseline raised by descender
+    gc = glyph_collection!(p, r, Int64[72, 105], Int64(0), Int64(400), Int64(0),
+                           s, 1.0, 0.0, 1.0, -1.0, 0.0, 0.0)
+    @test gc.origins_x ≈ [-11.0, -5.5]
+    @test gc.origins_y ≈ [2.5, 2.5]
+
+    # two lines "A\nB", left/top: second baseline one lineheight down
+    gc = glyph_collection!(p, r, Int64[65, 10, 66], Int64(0), Int64(400), Int64(0),
+                           s, 0.0, 1.0, 1.0, -1.0, 0.0, 0.0)
+    @test gc.glyphs == [65, 10, 66]
+    @test gc.origins_x ≈ [0.0, 5.5, 0.0]
+    @test gc.origins_y ≈ [-9.0, -9.0, -20.5]
+
+    # empty string
+    gc0 = glyph_collection!(p, r, Int64[], Int64(0), Int64(400), Int64(0),
+                            s, 0.0, -1.0, 1.0, -1.0, 0.0, 0.0)
+    @test isempty(gc0.glyphs) && isempty(gc0.origins_x)
+
+    # rotation π/2 about the anchor: (x, y) → (−y, x)
+    gcr = glyph_collection!(p, r, Int64[72, 105], Int64(0), Int64(400), Int64(0),
+                            s, 0.0, -1.0, 1.0, -1.0, pi / 2, 0.0)
+    @test gcr.origins_x ≈ [0.0, 0.0] atol = 1e-12
+    @test gcr.origins_y ≈ [0.0, 5.5]
+
+    # justification: two-line right-justified, left-aligned block
+    gcj = glyph_collection!(p, r, Int64[65, 66, 10, 67], Int64(0), Int64(400), Int64(0),
+                            s, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0)
+    # line widths 11 ("AB") and 5.5 ("C"); C shifted right by 5.5
+    @test gcj.origins_x ≈ [0.0, 5.5, 11.0, 5.5]
+
+    # word wrap: "AB CD" at width 15 breaks the space into a newline
+    gcw = glyph_collection!(p, r, Int64[65, 66, 32, 67, 68], Int64(0), Int64(400), Int64(0),
+                            s, 0.0, 1.0, 1.0, -1.0, 0.0, 15.0)
+    @test gcw.glyphs == [65, 66, 10, 67, 68]   # space rewritten to \n
+    @test gcw.origins_x ≈ [0.0, 5.5, 11.0, 0.0, 5.5]
+    @test gcw.origins_y[4] ≈ gcw.origins_y[1] - 11.5
+
+    # compiled: the full layouting runs in wasm (8 distinct glyphs = 8 cache
+    # misses in the logged stream; no trap)
+    bytes = compile_with_canvas(Any[(k_t003_layout, (), "k")])
+    dir = mktempdir()
+    wp = joinpath(dir, "k.wasm"); write(wp, bytes)
+    gp = joinpath(dir, "glue.js"); write(gp, js_glue())
+    checker = joinpath(@__DIR__, "wasm_stream_check.js")
+    stream_json = strip(read(`node $checker $wp $gp k`, String))
+    @test startswith(stream_json, "[")
+    counts = read(`node -e "
+      const s = JSON.parse(process.argv[1]);
+      console.log(s.filter(c => c.op === 'set_font').length);
+    " $stream_json`, String)
+    @test strip(counts) == "8"
 end
 
 @testset "vendored optimize_ticks sanity (C-002)" begin

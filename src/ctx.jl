@@ -56,6 +56,7 @@ const _SPECIAL_RECORDING_OPS = (
     :gradient_linear_new, :gradient_clear_all,
     :measure_text_buf_width, :measure_text_buf_ascent, :measure_text_buf_descent,
     :measure_text_buf_left, :measure_text_buf_right,
+    :measure_text_buf_font_ascent, :measure_text_buf_font_descent,
     :width, :height, :device_pixel_ratio,
 )
 
@@ -137,6 +138,17 @@ end
 function measure_text_buf_right(ctx::RecordingCtx)
     push!(ctx.commands, Command(:measure_text_buf_right, Float64[], Int64[]))
     return ctx.char_width_ratio * ctx.font_size * ctx.buf_len - 0.04 * ctx.font_size
+end
+
+# font-box stand-ins (fontBoundingBoxAscent/Descent): fixed 0.9/0.25·size
+function measure_text_buf_font_ascent(ctx::RecordingCtx)
+    push!(ctx.commands, Command(:measure_text_buf_font_ascent, Float64[], Int64[]))
+    return 0.9 * ctx.font_size
+end
+
+function measure_text_buf_font_descent(ctx::RecordingCtx)
+    push!(ctx.commands, Command(:measure_text_buf_font_descent, Float64[], Int64[]))
+    return 0.25 * ctx.font_size
 end
 
 function width(ctx::RecordingCtx)

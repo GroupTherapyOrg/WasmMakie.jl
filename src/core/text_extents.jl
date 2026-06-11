@@ -20,11 +20,13 @@
 
 "Per-glyph metrics, per font-size unit (multiply by size in px)."
 struct GlyphExtent
-    hadvance::Float64   # measureText().width
-    ascent::Float64     # actualBoundingBoxAscent (ink, above baseline)
-    descent::Float64    # actualBoundingBoxDescent (ink, below baseline)
-    left::Float64       # actualBoundingBoxLeft (ink, left of origin)
-    right::Float64      # actualBoundingBoxRight (ink, right of origin)
+    hadvance::Float64     # measureText().width
+    ascent::Float64       # actualBoundingBoxAscent (ink, above baseline)
+    descent::Float64      # actualBoundingBoxDescent (ink, below baseline)
+    left::Float64         # actualBoundingBoxLeft (ink, left of origin)
+    right::Float64        # actualBoundingBoxRight (ink, right of origin)
+    font_ascent::Float64  # fontBoundingBoxAscent — FreeType ascender analog
+    font_descent::Float64 # fontBoundingBoxDescent — −descender analog
 end
 
 "Reference pixel size glyphs are measured at (metrics scale linearly)."
@@ -66,8 +68,11 @@ function glyph_extent!(p::ExtentProvider, ctx, cp::Int64, fam::Int64,
     d = measure_text_buf_descent(ctx)
     l = measure_text_buf_left(ctx)
     r = measure_text_buf_right(ctx)
+    fa = measure_text_buf_font_ascent(ctx)
+    fd = measure_text_buf_font_descent(ctx)
     g = GlyphExtent(w / EXTENT_REF_SIZE, a / EXTENT_REF_SIZE, d / EXTENT_REF_SIZE,
-                    l / EXTENT_REF_SIZE, r / EXTENT_REF_SIZE)
+                    l / EXTENT_REF_SIZE, r / EXTENT_REF_SIZE,
+                    fa / EXTENT_REF_SIZE, fd / EXTENT_REF_SIZE)
     push!(p.keys, key)
     push!(p.extents, g)
     return g
