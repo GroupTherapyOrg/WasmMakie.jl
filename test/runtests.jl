@@ -513,10 +513,12 @@ end
     @test s1.markersize == 9.0 && s1.marker == WasmMakie.MARKER_CIRCLE
     @test s1.strokewidth == 0.0
 
-    # barplot!: defaults from Makie (gap 0.2), limits reach to 0
+    # barplot!: defaults from Makie (gap 0.2), limits reach to 0 AND include
+    # the bar rectangles (width (1-gap)·step = 0.8 → ±0.4; L-004 oracle fix)
     b1 = barplot!(ax, [1, 2], [3.0, -1.0]; color = (0.0, 0.0, 1.0, 1.0))
     @test b1.gap == 0.2
-    @test WasmMakie.data_limits(b1) == (1.0, 2.0, -1.0, 3.0)
+    @test b1.width == 0.8
+    @test WasmMakie.data_limits(b1) == (0.6, 2.4, -1.0, 3.0)
 
     # heatmap!: centers→edges conversion + edges passthrough
     h1 = heatmap!(ax, [1.0, 2.0], [10.0, 20.0], [1.0 2.0; 3.0 4.0])
@@ -702,6 +704,37 @@ end
     Colorbar(fig3[1, 1]; limits = (0.0, 1.0), vertical = false)
     r3 = RecordingCtx(); render!(fig3, r3)
     @test any(c -> c.op === :img_buf_new, r3.commands)
+end
+
+@testset "GridLayout spans + sizes (L-004)" begin
+    fig = Figure(size = (400, 300))
+    ax = Axis(fig[1, 1:2])
+    @test ax.row == 1 && ax.col == 1 && ax.row2 == 1 && ax.col2 == 2
+    Axis(fig[2, 1]); Axis(fig[2, 2])
+    @test WasmMakie.grid_extents(fig) == (2, 2)
+    colsize!(fig, 1, Relative(0.3))
+    rowsize!(fig, 2, 120)
+    @test fig.colsizes[1].kind == WasmMakie.SIZE_RELATIVE
+    @test fig.rowsizes[2].kind == WasmMakie.SIZE_FIXED && fig.rowsizes[2].value == 120.0
+    r = RecordingCtx(); render!(fig, r)
+    @test length(r.commands) > 100   # renders without error
+    # span rect really unions cells: the wide axis bg covers > half the width
+    bg = nothing
+    count_fr = 0
+    for c in r.commands
+        if c.op === :fill_rect
+            count_fr += 1
+            count_fr == 2 && (bg = c)   # 1st = figure bg, 2nd = first axis bg
+        end
+    end
+    @test bg !== nothing && bg.fargs[3] > 200.0   # spans both columns of a 400w figure
+    # vertical span for colorbars
+    fig2 = Figure(size = (300, 300))
+    Axis(fig2[1, 1]); Axis(fig2[2, 1])
+    cb = Colorbar(fig2[1:2, 2]; limits = (0.0, 1.0))
+    @test cb.row == 1 && cb.row2 == 2
+    r2 = RecordingCtx(); render!(fig2, r2)
+    @test any(c -> c.op === :img_buf_new, r2.commands)
 end
 
 @testset "static-core render pipeline (C-009)" begin

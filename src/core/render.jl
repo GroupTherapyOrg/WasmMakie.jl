@@ -55,19 +55,23 @@ function render!(fig::Figure, ctx)
     prots = fill(Protrusions(), nrows * ncols)
     for (i, ax) in enumerate(fig.axes)
         resolved[i] = resolve_axis(ax)
-        prots[(ax.row - 1) * ncols + ax.col] = resolved[i].prot
+        _merge_span_prots!(prots, resolved[i].prot, ncols,
+                           ax.row, ax.row2, ax.col, ax.col2)
     end
     for cb in fig.colorbars
-        prots[(cb.row - 1) * ncols + cb.col] = _colorbar_protrusions(cb)
+        _merge_span_prots!(prots, _colorbar_protrusions(cb), ncols,
+                           cb.row, cb.row2, cb.col, cb.col2)
     end
-    sizes_r = [auto_size() for _ in 1:nrows]
-    sizes_c = [auto_size() for _ in 1:ncols]
+    sizes_r = [i <= length(fig.rowsizes) ? fig.rowsizes[i] : auto_size() for i in 1:nrows]
+    sizes_c = [i <= length(fig.colsizes) ? fig.colsizes[i] : auto_size() for i in 1:ncols]
     # a column holding only vertical colorbars gets the fixed 12px bar width
     # (Makie Colorbar size); same for rows of horizontal bars
     for cb in fig.colorbars
-        if cb.vertical && !any(a -> a.col == cb.col, fig.axes)
+        if cb.vertical && sizes_c[cb.col].kind == SIZE_AUTO &&
+                !any(a -> a.col <= cb.col <= a.col2, fig.axes)
             sizes_c[cb.col] = fixed_size(COLORBAR_SIZE)
-        elseif !cb.vertical && !any(a -> a.row == cb.row, fig.axes)
+        elseif !cb.vertical && sizes_r[cb.row].kind == SIZE_AUTO &&
+                !any(a -> a.row <= cb.row <= a.row2, fig.axes)
             sizes_r[cb.row] = fixed_size(COLORBAR_SIZE)
         end
     end
@@ -76,14 +80,40 @@ function render!(fig::Figure, ctx)
                        outside_pad = fig.padding)
 
     for (i, ax) in enumerate(fig.axes)
-        irect = rects[(ax.row - 1) * ncols + ax.col]
+        irect = _span_rect(rects, ncols, ax.row, ax.row2, ax.col, ax.col2)
         draw_axis!(ctx, ax, resolved[i], irect)
     end
     for cb in fig.colorbars
-        irect = rects[(cb.row - 1) * ncols + cb.col]
+        irect = _span_rect(rects, ncols, cb.row, cb.row2, cb.col, cb.col2)
         draw_colorbar!(ctx, cb, irect)
     end
     return nothing
+end
+
+# spanning elements contribute each protrusion side to the EDGE cells of
+# their span (GridLayoutBase semantics), max-merged with cohabitants
+function _merge_span_prots!(prots::Vector{Protrusions}, p::Protrusions, ncols::Int64,
+                            r1::Int64, r2::Int64, c1::Int64, c2::Int64)
+    for r in r1:r2
+        for c in c1:c2
+            i = (r - 1) * ncols + c
+            old = prots[i]
+            prots[i] = Protrusions(
+                c == c1 ? max(old.l, p.l) : old.l,
+                c == c2 ? max(old.r, p.r) : old.r,
+                r == r1 ? max(old.t, p.t) : old.t,
+                r == r2 ? max(old.b, p.b) : old.b)
+        end
+    end
+    return nothing
+end
+
+"Bounding rect of a span's inner cells."
+function _span_rect(rects::Vector{Rect2}, ncols::Int64,
+                    r1::Int64, r2::Int64, c1::Int64, c2::Int64)
+    a = rects[(r1 - 1) * ncols + c1]
+    b = rects[(r2 - 1) * ncols + c2]
+    return Rect2(a.x, a.y, b.x + b.w - a.x, b.y + b.h - a.y)
 end
 
 # ── L-003: Colorbar (Makie @Block defaults: size 12, ticksize 5,
@@ -288,8 +318,7 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
         elseif kind == PLOT_BARPLOT
             p = ax.bars[idx]
             n = length(p.x)
-            barw = n > 1 ? (1.0 - p.gap) * abs(px_x(t, p.x[2]) - px_x(t, p.x[1])) :
-                   (1.0 - p.gap) * t.rw * 0.5
+            barw = p.width / t.xspan * t.rw   # data-unit width → px
             y0 = px_y(t, 0.0)
             for i in 1:n
                 cx = px_x(t, p.x[i])

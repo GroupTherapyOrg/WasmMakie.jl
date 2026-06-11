@@ -13,6 +13,8 @@ fields with Makie's defaults. Limits use NaN sentinels for "automatic".
 mutable struct Axis
     row::Int64
     col::Int64
+    row2::Int64   # span end (== row for single-cell)
+    col2::Int64
     title::String
     xlabel::String
     ylabel::String
@@ -73,7 +75,7 @@ _titlealign_code(s::Symbol) = s === :left ? Int64(0) : s === :right ? Int64(2) :
 
 function Axis(; title::String = "", xlabel::String = "", ylabel::String = "",
               subtitle::String = "", titlealign::Symbol = :center)
-    return Axis(1, 1, title, xlabel, ylabel,
+    return Axis(1, 1, 1, 1, title, xlabel, ylabel,
                 NaN, NaN, NaN, NaN,
                 THEME_FONTSIZE,  # titlesize @inherit(:fontsize) — theme 14, NOT the 16 fallback
                 THEME_FONTSIZE, THEME_FONTSIZE,
@@ -120,6 +122,8 @@ flipaxis default).
 mutable struct Colorbar
     row::Int64
     col::Int64
+    row2::Int64
+    col2::Int64
     lo::Float64
     hi::Float64
     label::String
@@ -141,6 +145,8 @@ mutable struct Figure
     colgap::Float64
     axes::Vector{Axis}
     colorbars::Vector{Colorbar}
+    rowsizes::Vector{SizeSpec}   # sparse overrides via rowsize!; auto beyond length
+    colsizes::Vector{SizeSpec}
 end
 
 function Figure(; size::Tuple{Real,Real} = THEME_SIZE,
@@ -148,22 +154,59 @@ function Figure(; size::Tuple{Real,Real} = THEME_SIZE,
                 figure_padding::Real = THEME_FIGURE_PADDING)
     return Figure(Float64(size[1]), Float64(size[2]), backgroundcolor,
                   Float64(figure_padding), THEME_ROWGAP, THEME_COLGAP, Axis[],
-                  Colorbar[])
+                  Colorbar[], SizeSpec[], SizeSpec[])
 end
 
 struct GridPosition
     figure::Figure
     row::Int64
     col::Int64
+    row2::Int64   # span end
+    col2::Int64
 end
 
 Base.getindex(fig::Figure, row::Integer, col::Integer) =
-    GridPosition(fig, Int64(row), Int64(col))
+    GridPosition(fig, Int64(row), Int64(col), Int64(row), Int64(col))
+Base.getindex(fig::Figure, row::Integer, cols::UnitRange{<:Integer}) =
+    GridPosition(fig, Int64(row), Int64(first(cols)), Int64(row), Int64(last(cols)))
+Base.getindex(fig::Figure, rows::UnitRange{<:Integer}, col::Integer) =
+    GridPosition(fig, Int64(first(rows)), Int64(col), Int64(last(rows)), Int64(col))
+Base.getindex(fig::Figure, rows::UnitRange{<:Integer}, cols::UnitRange{<:Integer}) =
+    GridPosition(fig, Int64(first(rows)), Int64(first(cols)), Int64(last(rows)), Int64(last(cols)))
+
+"""
+    Relative(f) / Fixed(px) / Auto()
+
+GridLayoutBase's content sizes (L-004) for `colsize!`/`rowsize!`.
+"""
+Relative(f::Real) = relative_size(Float64(f))
+Fixed(px::Real) = fixed_size(Float64(px))
+Auto() = auto_size()
+
+"Set column `i`'s size (SizeSpec or px number) — Makie colsize! parity."
+function colsize!(fig::Figure, i::Integer, sz::SizeSpec)
+    while length(fig.colsizes) < i
+        push!(fig.colsizes, auto_size())
+    end
+    fig.colsizes[i] = sz
+    return fig
+end
+colsize!(fig::Figure, i::Integer, px::Real) = colsize!(fig, i, fixed_size(Float64(px)))
+
+"Set row `i`'s size — Makie rowsize! parity."
+function rowsize!(fig::Figure, i::Integer, sz::SizeSpec)
+    while length(fig.rowsizes) < i
+        push!(fig.rowsizes, auto_size())
+    end
+    fig.rowsizes[i] = sz
+    return fig
+end
+rowsize!(fig::Figure, i::Integer, px::Real) = rowsize!(fig, i, fixed_size(Float64(px)))
 
 function Colorbar(gp::GridPosition; limits::Tuple{Real,Real} = (0.0, 1.0),
                   label::String = "", vertical::Bool = true)
-    cb = Colorbar(gp.row, gp.col, Float64(limits[1]), Float64(limits[2]),
-                  label, vertical)
+    cb = Colorbar(gp.row, gp.col, gp.row2, gp.col2,
+                  Float64(limits[1]), Float64(limits[2]), label, vertical)
     push!(gp.figure.colorbars, cb)
     return cb
 end
@@ -172,7 +215,7 @@ function Colorbar(gp::GridPosition, hm::HeatmapPlot; label::String = "",
                   vertical::Bool = true)
     lo = isnan(hm.colorrange_min) ? minimum(hm.values) : hm.colorrange_min
     hi = isnan(hm.colorrange_max) ? maximum(hm.values) : hm.colorrange_max
-    cb = Colorbar(gp.row, gp.col, lo, hi, label, vertical)
+    cb = Colorbar(gp.row, gp.col, gp.row2, gp.col2, lo, hi, label, vertical)
     push!(gp.figure.colorbars, cb)
     return cb
 end
@@ -237,6 +280,8 @@ function Axis(gp::GridPosition; kwargs...)
     ax = Axis(; kwargs...)
     ax.row = gp.row
     ax.col = gp.col
+    ax.row2 = gp.row2
+    ax.col2 = gp.col2
     push!(gp.figure.axes, ax)
     return ax
 end
@@ -246,12 +291,12 @@ function grid_extents(fig::Figure)
     nrows = Int64(1)
     ncols = Int64(1)
     for ax in fig.axes
-        ax.row > nrows && (nrows = ax.row)
-        ax.col > ncols && (ncols = ax.col)
+        ax.row2 > nrows && (nrows = ax.row2)
+        ax.col2 > ncols && (ncols = ax.col2)
     end
     for cb in fig.colorbars
-        cb.row > nrows && (nrows = cb.row)
-        cb.col > ncols && (ncols = cb.col)
+        cb.row2 > nrows && (nrows = cb.row2)
+        cb.col2 > ncols && (ncols = cb.col2)
     end
     return nrows, ncols
 end

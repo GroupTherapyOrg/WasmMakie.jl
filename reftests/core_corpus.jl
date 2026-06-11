@@ -120,6 +120,15 @@ const CORPUS = Scene2[
         (Makie, fig) -> (hm = Makie.heatmap!(Makie.Axis(fig[1, 1]), [0, 1, 2, 3], [0, 1, 2],
                                              [1.0 4.0; 2.0 5.0; 3.0 6.0]);
                 Makie.Colorbar(fig[1, 2], hm))),
+    Scene2("layout: span + relative colsize",
+        fig -> (WasmMakie.lines!(WasmMakie.Axis(fig[1, 1:2]; title = "wide"), XS, YS1);
+                WasmMakie.scatter!(WasmMakie.Axis(fig[2, 1]), XS, YS2);
+                WasmMakie.barplot!(WasmMakie.Axis(fig[2, 2]), [1, 2, 3], [1.0, 2.0, 1.5]);
+                WasmMakie.colsize!(fig, 1, WasmMakie.Relative(0.35))),
+        (Makie, fig) -> (Makie.lines!(Makie.Axis(fig[1, 1:2]; title = "wide"), XS, YS1);
+                Makie.scatter!(Makie.Axis(fig[2, 1]), XS, YS2);
+                Makie.barplot!(Makie.Axis(fig[2, 2]), [1, 2, 3], [1.0, 2.0, 1.5]);
+                Makie.colsize!(fig.layout, 1, Makie.Relative(0.35)))),
 ]
 
 end # module

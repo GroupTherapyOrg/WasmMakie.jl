@@ -55,8 +55,20 @@ function barplot!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real}
                   color = nothing, gap::Real = 0.2, strokecolor = :black,
                   strokewidth::Real = 0.0, label::String = "")
     c = color === nothing ? _next_cycle_color(ax) : _color(color)
-    push!(ax.bars, BarPlotData(_f64vec(x), _f64vec(y), c, Float64(gap),
-                               _color(strokecolor), Float64(strokewidth), label))
+    xs = _f64vec(x)
+    # Makie automatic width: the minimum gap between consecutive x values
+    step = 1.0
+    if length(xs) > 1
+        step = Inf
+        for i in 2:length(xs)
+            d = abs(xs[i] - xs[i - 1])
+            d > 0.0 && d < step && (step = d)
+        end
+        isfinite(step) || (step = 1.0)
+    end
+    push!(ax.bars, BarPlotData(xs, _f64vec(y), c, Float64(gap),
+                               _color(strokecolor), Float64(strokewidth), label,
+                               (1.0 - Float64(gap)) * step))
     _push_plot!(ax, PLOT_BARPLOT, Int64(length(ax.bars)))
     return ax.bars[end]
 end
@@ -183,8 +195,10 @@ data_limits(p::ScatterPlot) = (_extrema_finite(p.x)..., _extrema_finite(p.y)...)
 function data_limits(p::BarPlotData)
     xlo, xhi = _extrema_finite(p.x)
     ylo, yhi = _extrema_finite(p.y)
-    # bars reach down/up to 0 (Makie barplot fillto default)
-    return (xlo, xhi, min(ylo, 0.0), max(yhi, 0.0))
+    # bars reach down/up to 0 (fillto default) and extend ±width/2 in x —
+    # Makie barplot limits are the bar RECTANGLES' bounding box (oracle:
+    # x∈[1,4], width 0.8 → limits 0.41..4.59 after margins)
+    return (xlo - 0.5 * p.width, xhi + 0.5 * p.width, min(ylo, 0.0), max(yhi, 0.0))
 end
 data_limits(p::HeatmapPlot) = (p.xs[1], p.xs[end], p.ys[1], p.ys[end])
 data_limits(p::ImagePlot) = (p.x0, p.x1, p.y0, p.y1)

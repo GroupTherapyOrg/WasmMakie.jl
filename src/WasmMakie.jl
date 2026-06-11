@@ -49,10 +49,10 @@ include("draw/image.jl")
 include("draw/poly.jl")
 include("core/theme.jl")
 include("core/plots.jl")
+include("core/layout.jl")    # SizeSpec/Protrusions used by figure.jl (L-004)
 include("core/figure.jl")
 include("core/plot_api.jl")
 include("core/geometry.jl")
-include("core/layout.jl")
 include("vendor/ticks.jl")
 include("vendor/tick_format.jl")
 include("vendor/linear_ticks.jl")
@@ -73,5 +73,6 @@ export GlyphCollection, glyph_collection!, halign2num, valign2num
 export TableExtents
 export hidedecorations!, hidexdecorations!, hideydecorations!, hidespines!
 export axislegend, Colorbar
+export colsize!, rowsize!, Relative, Fixed, Auto
 
 end # module

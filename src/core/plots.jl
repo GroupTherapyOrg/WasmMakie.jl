@@ -49,6 +49,7 @@ mutable struct BarPlotData
     strokecolor::NTuple{4,Float64}
     strokewidth::Float64
     label::String
+    width::Float64   # drawn bar width in DATA units: (1−gap)·min-step (Makie automatic)
 end
 
 # WTGAP(3aaa51b9a688): Matrix{Float64} fails wasm validation (struct.new

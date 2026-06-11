@@ -1,7 +1,7 @@
 # score	scene  (static core vs real-Makie CanvasMakie render)
-0.9116	core: barplot
-0.9095	core: barplot negative
-0.5609	core: 2x2 grid
+0.2356	core: barplot
+0.2356	layout: span + relative colsize
+0.2336	core: 2x2 grid
 0.233	core: titles and labels
 0.1736	legend: axislegend rt
 0.1547	axis: minorgrid + bold title + subtitle
@@ -15,5 +15,6 @@
 0.1179	core: lines + scatter
 0.0902	core: heatmap viridis
 0.0902	colorbar: heatmap-linked vertical
+0.076	core: barplot negative
 0.0	axis: hidden decorations + spines
-# CORE_PARITY passed=14/17 @ tier 0.30 (T-005-tightened; text scenes ~0.15)
+# CORE_PARITY passed=18/18 @ tier 0.30 (T-005-tightened; text scenes ~0.15)
