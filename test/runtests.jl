@@ -737,6 +737,41 @@ end
     @test any(c -> c.op === :img_buf_new, r2.commands)
 end
 
+@testset "wave-1 annotation recipes (R-002 partial)" begin
+    fig = Figure(size = (300, 200))
+    ax = Axis(fig[1, 1])
+    lines!(ax, [0.0, 2.0], [0.0, 2.0])
+    h = hlines!(ax, [0.5, 1.5]; color = :red)
+    @test h.horizontal && h.values == [0.5, 1.5]
+    v = vlines!(ax, 1.0)
+    @test !v.horizontal
+    sp = hspan!(ax, 0.2, 0.4; color = (0.1, 0.2, 0.3, 0.4))
+    @test sp.los == [0.2] && sp.his == [0.4]
+    ab = ablines!(ax, 1.0, -0.5)
+    @test ab.intercepts == [1.0] && ab.slopes == [-0.5]
+    sg = linesegments!(ax, [0.0, 1.0, 1.0, 2.0], [0.0, 0.0, 1.0, 1.0])
+    @test length(sg.x) == 4
+    # limits: hlines extend y only; ablines never affect autolimits
+    axh = Axis(Figure()[1, 1])
+    lines!(axh, [0.0, 1.0], [0.0, 1.0])
+    hlines!(axh, [5.0])
+    lims = WasmMakie.final_limits(axh)
+    @test lims[4] > 5.0          # y grew to include the hline
+    @test lims[2] < 1.1          # x untouched
+    axa = Axis(Figure()[1, 1])
+    lines!(axa, [0.0, 1.0], [0.0, 1.0])
+    ablines!(axa, 100.0, 0.0)
+    @test WasmMakie.final_limits(axa)[4] < 1.1   # ablines ignored
+    # scatterlines = lines + scatter sharing color
+    axs = Axis(Figure()[1, 1])
+    sl = scatterlines!(axs, [0.0, 1.0], [0.0, 1.0])
+    @test length(axs.lines) == 1 && length(axs.scatters) == 1
+    @test axs.lines[1].color == axs.scatters[1].color
+    # render smoke
+    r = RecordingCtx(); render!(fig, r)
+    @test length(r.commands) > 120
+end
+
 @testset "static-core render pipeline (C-009)" begin
     fig = Figure(size = (300, 200))
     ax = Axis(fig[1, 1]; title = "T", xlabel = "x", ylabel = "y")
@@ -809,8 +844,8 @@ end
         @test res.pixels[(185, 125)] == (0, 255, 255, 255)    # image px 2
     end
 
-    # WTGAP regression guard: const-global empty Vector still traps — when
-    # this STOPS trapping, the gap is fixed upstream and no_dash() can revert
+    # WTGAP(ffd3d052c6a4) FIXED (WasmTarget v0.3.1): const-global empty
+    # Vector references now work compiled — pin the FIXED behavior
     bytes2 = compile_with_canvas(Any[(w001_const_global_probe, (), "kcg")])
     trapped = try
         render_wasm(bytes2, "kcg"; width = 20, height = 20, probes = [(2, 2)]) !== nothing
@@ -818,7 +853,7 @@ end
     catch
         true
     end
-    @test trapped  # flips when WasmTarget fixes const-global vector materialization
+    @test !trapped  # the gap is fixed; a re-trap would be an upstream regression
 end
 
 
@@ -908,6 +943,17 @@ function w005_colorbar()
     Colorbar(fig[1, 2], hm)
     render!(fig, WasmCtx()); return Int64(0)
 end
+function w005_annotations()
+    fig = Figure(size = (300.0, 200.0))
+    ax = Axis(fig[1, 1])
+    lines!(ax, [0.0, 1.0, 2.0], [0.5, 1.5, 1.0])
+    hlines!(ax, [1.0]; color = :red)
+    vlines!(ax, [0.5]; color = :green, linestyle = :dash)
+    hspan!(ax, 0.6, 0.8; color = (0.2, 0.4, 0.8, 0.3))
+    ablines!(ax, 0.0, 0.7; color = :purple)
+    linesegments!(ax, [0.2, 0.8, 1.2, 1.8], [1.4, 1.4, 0.2, 0.2])
+    render!(fig, WasmCtx()); return Int64(0)
+end
 function w005_grid()
     fig = Figure(size = (400.0, 300.0))
     lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
@@ -951,6 +997,15 @@ end
                 hm = heatmap!(Axis(fig[1, 1]), [0.0, 1.0, 2.0, 3.0], [0.0, 1.0, 2.0],
                               [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], Int64(3), Int64(2))
                 Colorbar(fig[1, 2], hm)
+            end),
+            ("annotations", w005_annotations, (300.0, 200.0), fig -> begin
+                ax = Axis(fig[1, 1])
+                lines!(ax, [0.0, 1.0, 2.0], [0.5, 1.5, 1.0])
+                hlines!(ax, [1.0]; color = :red)
+                vlines!(ax, [0.5]; color = :green, linestyle = :dash)
+                hspan!(ax, 0.6, 0.8; color = (0.2, 0.4, 0.8, 0.3))
+                ablines!(ax, 0.0, 0.7; color = :purple)
+                linesegments!(ax, [0.2, 0.8, 1.2, 1.8], [1.4, 1.4, 0.2, 0.2])
             end),
             ("grid", w005_grid, (400.0, 300.0), fig -> begin
                 lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])

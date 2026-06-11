@@ -9,9 +9,10 @@
 # Closed-world discipline applies to this file: concrete types only.
 
 const NO_DASH = Float64[]  # empty pattern = solid (host-side use only)
-# WTGAP(ffd3d052c6a4): referencing a const non-isbits global (this empty
-# Vector) from WasmTarget-compiled code traps `unreachable` at runtime —
-# locally-constructed empties work. Compiled paths call no_dash() instead.
+# WTGAP(bec011ff5ba2, was ffd3d052c6a4 — partially fixed v0.3.1): reading a
+# const-global's length now works compiled (W-001 guard pins it), but
+# PASSING the const vector into callees still traps — compiled paths keep
+# building locally via no_dash().
 @inline no_dash() = Float64[]
 
 # Makie linecap ints: 0 butt, 1 square, 2 round → ops table: 0 butt, 1 round, 2 square

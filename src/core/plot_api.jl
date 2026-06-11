@@ -178,6 +178,94 @@ function image!(ax::Axis, xspan::Tuple{Real,Real}, yspan::Tuple{Real,Real},
     return ax.images[end]
 end
 
+"""
+    hlines!(ax, ys; color = <cycle>, linewidth = 1.5, linestyle = :solid)
+
+Horizontal lines across the axis at data `ys` (Makie hvlines.jl parity:
+LineSegments attributes, color cycled, spans the full x range).
+"""
+function hlines!(ax::Axis, ys::AbstractVector{<:Real};
+                 color = nothing, linewidth::Real = THEME_LINEWIDTH,
+                 linestyle::Symbol = :solid, label::String = "")
+    c = color === nothing ? _next_cycle_color(ax) : _color(color)
+    push!(ax.hvlines, HVLines(true, _f64vec(ys), c, Float64(linewidth),
+                              _linestyle(linestyle), label))
+    _push_plot!(ax, PLOT_HVLINES, Int64(length(ax.hvlines)))
+    return ax.hvlines[end]
+end
+hlines!(ax::Axis, y::Real; kwargs...) = hlines!(ax, [y]; kwargs...)
+
+"Vertical lines across the axis at data `xs`."
+function vlines!(ax::Axis, xs::AbstractVector{<:Real};
+                 color = nothing, linewidth::Real = THEME_LINEWIDTH,
+                 linestyle::Symbol = :solid, label::String = "")
+    c = color === nothing ? _next_cycle_color(ax) : _color(color)
+    push!(ax.hvlines, HVLines(false, _f64vec(xs), c, Float64(linewidth),
+                              _linestyle(linestyle), label))
+    _push_plot!(ax, PLOT_HVLINES, Int64(length(ax.hvlines)))
+    return ax.hvlines[end]
+end
+vlines!(ax::Axis, x::Real; kwargs...) = vlines!(ax, [x]; kwargs...)
+
+"Horizontal filled bands from `los` to `his` (full x range)."
+function hspan!(ax::Axis, los::AbstractVector{<:Real}, his::AbstractVector{<:Real};
+                color = nothing, label::String = "")
+    c = color === nothing ? _next_cycle_color(ax) : _color(color)
+    push!(ax.hvspans, HVSpan(true, _f64vec(los), _f64vec(his), c, label))
+    _push_plot!(ax, PLOT_HVSPAN, Int64(length(ax.hvspans)))
+    return ax.hvspans[end]
+end
+hspan!(ax::Axis, lo::Real, hi::Real; kwargs...) = hspan!(ax, [lo], [hi]; kwargs...)
+
+"Vertical filled bands from `los` to `his` (full y range)."
+function vspan!(ax::Axis, los::AbstractVector{<:Real}, his::AbstractVector{<:Real};
+                color = nothing, label::String = "")
+    c = color === nothing ? _next_cycle_color(ax) : _color(color)
+    push!(ax.hvspans, HVSpan(false, _f64vec(los), _f64vec(his), c, label))
+    _push_plot!(ax, PLOT_HVSPAN, Int64(length(ax.hvspans)))
+    return ax.hvspans[end]
+end
+vspan!(ax::Axis, lo::Real, hi::Real; kwargs...) = vspan!(ax, [lo], [hi]; kwargs...)
+
+"Lines `y = intercept + slope·x` across the axis (Makie ablines parity)."
+function ablines!(ax::Axis, intercepts::AbstractVector{<:Real}, slopes::AbstractVector{<:Real};
+                  color = nothing, linewidth::Real = THEME_LINEWIDTH,
+                  linestyle::Symbol = :solid, label::String = "")
+    c = color === nothing ? _next_cycle_color(ax) : _color(color)
+    push!(ax.ablines, ABLines(_f64vec(intercepts), _f64vec(slopes), c,
+                              Float64(linewidth), _linestyle(linestyle), label))
+    _push_plot!(ax, PLOT_ABLINES, Int64(length(ax.ablines)))
+    return ax.ablines[end]
+end
+ablines!(ax::Axis, a::Real, b::Real; kwargs...) = ablines!(ax, [a], [b]; kwargs...)
+
+"Disconnected segments between consecutive point pairs (Makie linesegments)."
+function linesegments!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+                       color = nothing, linewidth::Real = THEME_LINEWIDTH,
+                       linestyle::Symbol = :solid, label::String = "")
+    c = color === nothing ? _next_cycle_color(ax) : _color(color)
+    push!(ax.segments, SegmentsPlot(_f64vec(x), _f64vec(y), c, Float64(linewidth),
+                                    _linestyle(linestyle), label))
+    _push_plot!(ax, PLOT_SEGMENTS, Int64(length(ax.segments)))
+    return ax.segments[end]
+end
+
+"""
+    scatterlines!(ax, x, y; ...)
+
+Lines + scatter with shared color (Makie scatterlines: markercolor follows
+linecolor) — two plot entries, one call.
+"""
+function scatterlines!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+                       color = nothing, linewidth::Real = THEME_LINEWIDTH,
+                       linestyle::Symbol = :solid, markersize::Real = THEME_MARKERSIZE,
+                       marker::Symbol = :circle, label::String = "")
+    c = color === nothing ? _next_cycle_color(ax) : _color(color)
+    l = lines!(ax, x, y; color = c, linewidth, linestyle, label)
+    scatter!(ax, x, y; color = c, markersize, marker)
+    return l
+end
+
 # ── data limits (consumed by C-008 autolimits) ──────────────────────────
 function _extrema_finite(v::Vector{Float64})
     lo = Inf
@@ -202,3 +290,15 @@ function data_limits(p::BarPlotData)
 end
 data_limits(p::HeatmapPlot) = (p.xs[1], p.xs[end], p.ys[1], p.ys[end])
 data_limits(p::ImagePlot) = (p.x0, p.x1, p.y0, p.y1)
+function data_limits(p::HVLines)
+    lo, hi = _extrema_finite(p.values)
+    # contributes only to its own dimension (the other spans the viewport)
+    return p.horizontal ? (Inf, -Inf, lo, hi) : (lo, hi, Inf, -Inf)
+end
+function data_limits(p::HVSpan)
+    lo, _ = _extrema_finite(p.los)
+    _, hi = _extrema_finite(p.his)
+    return p.horizontal ? (Inf, -Inf, lo, hi) : (lo, hi, Inf, -Inf)
+end
+data_limits(::ABLines) = (Inf, -Inf, Inf, -Inf)   # never affects autolimits
+data_limits(p::SegmentsPlot) = (_extrema_finite(p.x)..., _extrema_finite(p.y)...)

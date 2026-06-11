@@ -9,6 +9,10 @@ const PLOT_SCATTER = Int64(2)
 const PLOT_BARPLOT = Int64(3)
 const PLOT_HEATMAP = Int64(4)
 const PLOT_IMAGE = Int64(5)
+const PLOT_HVLINES = Int64(6)
+const PLOT_HVSPAN = Int64(7)
+const PLOT_ABLINES = Int64(8)
+const PLOT_SEGMENTS = Int64(9)
 
 # linestyles in Makie's encoding (vendor/ticks of lines draw layer consume these)
 const LINESTYLE_SOLID = Int64(0)
@@ -50,6 +54,43 @@ mutable struct BarPlotData
     strokewidth::Float64
     label::String
     width::Float64   # drawn bar width in DATA units: (1−gap)·min-step (Makie automatic)
+end
+
+# R-002 wave-1 annotation plots (Makie basic_recipes: hvlines, hvspan,
+# ablines, linesegments — LineSegments/Poly attribute sets, color cycled)
+mutable struct HVLines
+    horizontal::Bool         # hlines! vs vlines!
+    values::Vector{Float64}  # data coords in the line's own dimension
+    color::NTuple{4,Float64}
+    linewidth::Float64
+    linestyle::Int64
+    label::String
+end
+
+mutable struct HVSpan
+    horizontal::Bool         # hspan! vs vspan!
+    los::Vector{Float64}
+    his::Vector{Float64}
+    color::NTuple{4,Float64}
+    label::String
+end
+
+mutable struct ABLines
+    intercepts::Vector{Float64}
+    slopes::Vector{Float64}
+    color::NTuple{4,Float64}
+    linewidth::Float64
+    linestyle::Int64
+    label::String
+end
+
+mutable struct SegmentsPlot
+    x::Vector{Float64}       # consecutive pairs form segments
+    y::Vector{Float64}
+    color::NTuple{4,Float64}
+    linewidth::Float64
+    linestyle::Int64
+    label::String
 end
 
 # WTGAP(3aaa51b9a688): Matrix{Float64} fails wasm validation (struct.new

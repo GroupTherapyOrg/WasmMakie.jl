@@ -208,6 +208,13 @@ function draw_colorbar!(ctx, cb::Colorbar, irect::Rect2)
     return nothing
 end
 
+function fill_rect_rgba!(ctx, x::Float64, y::Float64, w::Float64, h::Float64,
+                         c::NTuple{4,Float64})
+    set_fill_rgba(ctx, 255.0 * c[1], 255.0 * c[2], 255.0 * c[3], c[4])
+    fill_rect(ctx, x, y, w, h)
+    return nothing
+end
+
 function _set_stroke!(ctx, c::NTuple{4,Float64}, w::Float64)
     set_stroke_rgba(ctx, 255.0 * c[1], 255.0 * c[2], 255.0 * c[3], c[4])
     set_line_width(ctx, w)
@@ -328,6 +335,61 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
                                 p.strokecolor[1], p.strokecolor[2], p.strokecolor[3], p.strokecolor[4],
                                 p.strokewidth, no_dash(), THEME_LINECAP, THEME_JOINSTYLE, 4.0)
             end
+        elseif kind == PLOT_HVLINES
+            p = ax.hvlines[idx]
+            pattern = p.linestyle == LINESTYLE_SOLID ? no_dash() :
+                      p.linestyle == LINESTYLE_DASH ? linestyle_to_pattern([0.0, 3.0, 4.0], p.linewidth) :
+                      p.linestyle == LINESTYLE_DOT ? linestyle_to_pattern([0.0, 1.0, 2.0], p.linewidth) :
+                      linestyle_to_pattern([0.0, 3.0, 4.0, 5.0, 6.0], p.linewidth)
+            for v in p.values
+                pts = p.horizontal ?
+                    NTuple{2,Float64}[(t.rx, px_y(t, v)), (t.rx + t.rw, px_y(t, v))] :
+                    NTuple{2,Float64}[(px_x(t, v), t.ry), (px_x(t, v), t.ry + t.rh)]
+                draw_lines!(ctx, pts, true, p.color[1], p.color[2], p.color[3], p.color[4],
+                            p.linewidth, pattern, THEME_LINECAP, THEME_JOINSTYLE, 10.0)
+            end
+        elseif kind == PLOT_HVSPAN
+            p = ax.hvspans[idx]
+            for i in eachindex(p.los)
+                if p.horizontal
+                    y1 = px_y(t, p.his[i]); y2 = px_y(t, p.los[i])
+                    fill_rect_rgba!(ctx, t.rx, y1, t.rw, y2 - y1, p.color)
+                else
+                    x1 = px_x(t, p.los[i]); x2 = px_x(t, p.his[i])
+                    fill_rect_rgba!(ctx, x1, t.ry, x2 - x1, t.rh, p.color)
+                end
+            end
+        elseif kind == PLOT_ABLINES
+            p = ax.ablines[idx]
+            pattern = p.linestyle == LINESTYLE_SOLID ? no_dash() :
+                      p.linestyle == LINESTYLE_DASH ? linestyle_to_pattern([0.0, 3.0, 4.0], p.linewidth) :
+                      p.linestyle == LINESTYLE_DOT ? linestyle_to_pattern([0.0, 1.0, 2.0], p.linewidth) :
+                      linestyle_to_pattern([0.0, 3.0, 4.0, 5.0, 6.0], p.linewidth)
+            for i in eachindex(p.intercepts)
+                a = p.intercepts[i]
+                b = p.slopes[i]
+                y_at_min = a + b * t.xmin
+                y_at_max = a + b * (t.xmin + t.xspan)
+                pts = NTuple{2,Float64}[(t.rx, px_y(t, y_at_min)),
+                                        (t.rx + t.rw, px_y(t, y_at_max))]
+                draw_lines!(ctx, pts, true, p.color[1], p.color[2], p.color[3], p.color[4],
+                            p.linewidth, pattern, THEME_LINECAP, THEME_JOINSTYLE, 10.0)
+            end
+        elseif kind == PLOT_SEGMENTS
+            p = ax.segments[idx]
+            pts = _project_xy(t, p.x, p.y)
+            pattern = p.linestyle == LINESTYLE_SOLID ? no_dash() :
+                      p.linestyle == LINESTYLE_DASH ? linestyle_to_pattern([0.0, 3.0, 4.0], p.linewidth) :
+                      p.linestyle == LINESTYLE_DOT ? linestyle_to_pattern([0.0, 1.0, 2.0], p.linewidth) :
+                      linestyle_to_pattern([0.0, 3.0, 4.0, 5.0, 6.0], p.linewidth)
+            set_line_cap(ctx, THEME_LINECAP)
+            cols = Vector{NTuple{4,Float64}}(undef, length(pts))
+            lws = Vector{Float64}(undef, length(pts))
+            for k in eachindex(pts)
+                cols[k] = p.color
+                lws[k] = p.linewidth
+            end
+            draw_multi_segments!(ctx, pts, cols, lws, pattern)
         elseif kind == PLOT_HEATMAP
             p = ax.heatmaps[idx]
             nx = p.nx

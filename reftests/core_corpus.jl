@@ -129,6 +129,26 @@ const CORPUS = Scene2[
                 Makie.scatter!(Makie.Axis(fig[2, 1]), XS, YS2);
                 Makie.barplot!(Makie.Axis(fig[2, 2]), [1, 2, 3], [1.0, 2.0, 1.5]);
                 Makie.colsize!(fig.layout, 1, Makie.Relative(0.35)))),
+    Scene2("recipes: wave-1 annotations",
+        fig -> (ax = WasmMakie.Axis(fig[1, 1]);
+                WasmMakie.lines!(ax, XS, YS1);
+                WasmMakie.hlines!(ax, [0.5]; color = :red);
+                WasmMakie.vlines!(ax, [1.5]; color = :green, linestyle = :dash);
+                WasmMakie.hspan!(ax, 0.1, 0.25; color = (0.2, 0.4, 0.8, 0.3));
+                WasmMakie.vspan!(ax, 2.4, 2.8; color = (0.8, 0.4, 0.2, 0.3));
+                WasmMakie.ablines!(ax, 0.0, 0.3; color = :purple);
+                WasmMakie.linesegments!(ax, [0.2, 0.8, 1.8, 2.4], [0.85, 0.85, 0.15, 0.15]; color = :black)),
+        (Makie, fig) -> (ax = Makie.Axis(fig[1, 1]);
+                Makie.lines!(ax, XS, YS1);
+                Makie.hlines!(ax, [0.5]; color = :red);
+                Makie.vlines!(ax, [1.5]; color = :green, linestyle = :dash);
+                Makie.hspan!(ax, 0.1, 0.25; color = (:blue, 0.3) === nothing ? :blue : Makie.RGBAf(0.2, 0.4, 0.8, 0.3));
+                Makie.vspan!(ax, 2.4, 2.8; color = Makie.RGBAf(0.8, 0.4, 0.2, 0.3));
+                Makie.ablines!(ax, 0.0, 0.3; color = :purple);
+                Makie.linesegments!(ax, [0.2, 0.8, 1.8, 2.4], [0.85, 0.85, 0.15, 0.15]; color = :black))),
+    Scene2("recipes: scatterlines",
+        fig -> WasmMakie.scatterlines!(WasmMakie.Axis(fig[1, 1]), XS, YS1; markersize = 10.0),
+        (Makie, fig) -> Makie.scatterlines!(Makie.Axis(fig[1, 1]), XS, YS1; markersize = 10)),
 ]
 
 end # module

@@ -45,7 +45,11 @@ function _plots_limits(ax::Axis)
             kind == PLOT_SCATTER ? data_limits(ax.scatters[idx]) :
             kind == PLOT_BARPLOT ? data_limits(ax.bars[idx]) :
             kind == PLOT_HEATMAP ? data_limits(ax.heatmaps[idx]) :
-            data_limits(ax.images[idx])
+            kind == PLOT_IMAGE ? data_limits(ax.images[idx]) :
+            kind == PLOT_HVLINES ? data_limits(ax.hvlines[idx]) :
+            kind == PLOT_HVSPAN ? data_limits(ax.hvspans[idx]) :
+            kind == PLOT_ABLINES ? data_limits(ax.ablines[idx]) :
+            data_limits(ax.segments[idx])
         l[1] < xlo && (xlo = l[1])
         l[2] > xhi && (xhi = l[2])
         l[3] < ylo && (ylo = l[3])

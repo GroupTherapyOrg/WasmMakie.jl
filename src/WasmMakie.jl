@@ -74,5 +74,6 @@ export TableExtents
 export hidedecorations!, hidexdecorations!, hideydecorations!, hidespines!
 export axislegend, Colorbar
 export colsize!, rowsize!, Relative, Fixed, Auto
+export hlines!, vlines!, hspan!, vspan!, ablines!, linesegments!, scatterlines!
 
 end # module

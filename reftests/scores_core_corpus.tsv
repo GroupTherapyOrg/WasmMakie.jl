@@ -13,8 +13,10 @@
 0.1179	core: scatter default
 0.1179	core: scatter sized rect
 0.1179	core: lines + scatter
+0.1179	recipes: scatterlines
+0.1159	recipes: wave-1 annotations
 0.0902	core: heatmap viridis
 0.0902	colorbar: heatmap-linked vertical
 0.076	core: barplot negative
 0.0	axis: hidden decorations + spines
-# CORE_PARITY passed=18/18 @ tier 0.30 (T-005-tightened; text scenes ~0.15)
+# CORE_PARITY passed=20/20 @ tier 0.30 (T-005-tightened; text scenes ~0.15)
