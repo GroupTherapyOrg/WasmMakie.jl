@@ -326,12 +326,14 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
             p = ax.bars[idx]
             n = length(p.x)
             barw = p.width / t.xspan * t.rw   # data-unit width → px
-            y0 = px_y(t, 0.0)
             for i in 1:n
                 cx = px_x(t, p.x[i])
+                base = isempty(p.fillto) ? 0.0 : p.fillto[i]
+                y0 = px_y(t, base)
                 ytop = px_y(t, p.y[i])
+                bc = isempty(p.colors) ? p.color : p.colors[i]
                 draw_poly_rect!(ctx, cx - 0.5 * barw, min(y0, ytop), barw, abs(y0 - ytop),
-                                p.color[1], p.color[2], p.color[3], p.color[4],
+                                bc[1], bc[2], bc[3], bc[4],
                                 p.strokecolor[1], p.strokecolor[2], p.strokecolor[3], p.strokecolor[4],
                                 p.strokewidth, no_dash(), THEME_LINECAP, THEME_JOINSTYLE, 4.0)
             end

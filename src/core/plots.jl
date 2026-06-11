@@ -57,6 +57,8 @@ mutable struct BarPlotData
     strokewidth::Float64
     label::String
     width::Float64   # drawn bar width in DATA units: (1−gap)·min-step (Makie automatic)
+    fillto::Vector{Float64}              # per-bar baseline (empty = 0; stack/waterfall)
+    colors::Vector{NTuple{4,Float64}}    # per-bar colors (empty = uniform .color)
 end
 
 # R-002 wave-1 annotation plots (Makie basic_recipes: hvlines, hvspan,

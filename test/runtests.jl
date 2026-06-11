@@ -845,6 +845,37 @@ end
     @test abs((maximum(axv.polys[1].xs) - 1.0) - (1.0 - minimum(axv.polys[1].xs))) < 1e-9
 end
 
+@testset "grouped/stacked bars + crossbar + series + waterfall (R-003)" begin
+    # dodge: Makie shift/scale formulas
+    ax = Axis(Figure()[1, 1])
+    b = barplot!(ax, [1.0, 1.0], [2.0, 3.0]; dodge = [1, 2])
+    # width (1-gap)*1 = 0.8; dw = (1-0.03)/2 = 0.485; shifts ±(dw+gap)/2-ish
+    @test b.width ≈ 0.8 * 0.485
+    @test b.x[1] < 1.0 < b.x[2]
+    @test b.x[2] - b.x[1] ≈ 0.8 * (0.485 + 0.03)
+    # stack: cumulative from/to per x
+    ax2 = Axis(Figure()[1, 1])
+    b2 = barplot!(ax2, [1.0, 1.0, 2.0, 2.0], [2.0, 3.0, 1.0, 2.0]; stack = [1, 2, 1, 2])
+    @test b2.fillto == [0.0, 2.0, 0.0, 1.0]
+    @test b2.y == [2.0, 5.0, 1.0, 3.0]
+    @test WasmMakie.data_limits(b2)[4] == 5.0
+    # waterfall: running-sum spans
+    ax3 = Axis(Figure()[1, 1])
+    w = waterfall!(ax3, [1.0, 2.0, 3.0], [2.0, -1.0, 3.0])
+    @test w.fillto == [0.0, 2.0, 1.0]
+    @test w.y == [2.0, 1.0, 4.0]
+    # crossbar: box poly + midline segments
+    ax4 = Axis(Figure()[1, 1])
+    crossbar!(ax4, [1.0], [2.0], [1.0], [3.0])
+    @test length(ax4.polys) == 1 && length(ax4.segments) == 1
+    @test extrema(ax4.polys[1].ys) == (1.0, 3.0)
+    # series: one cycle-colored line per row
+    ax5 = Axis(Figure()[1, 1])
+    series!(ax5, [1.0 2.0; 3.0 4.0])
+    @test length(ax5.lines) == 2
+    @test ax5.lines[1].color != ax5.lines[2].color
+end
+
 @testset "static-core render pipeline (C-009)" begin
     fig = Figure(size = (300, 200))
     ax = Axis(fig[1, 1]; title = "T", xlabel = "x", ylabel = "y")
@@ -1046,6 +1077,16 @@ function w005_composites()
     pie!(Axis(fig[1, 2]), [3.0, 2.0, 1.0])
     render!(fig, WasmCtx()); return Int64(0)
 end
+function w005_groupedbars()
+    fig = Figure(size = (300.0, 200.0))
+    barplot!(Axis(fig[1, 1]), [1.0, 1.0, 2.0, 2.0], [2.0, 3.0, 1.0, 2.0];
+             dodge = Int64[1, 2, 1, 2])
+    barplot!(Axis(fig[1, 2]), [1.0, 1.0, 2.0, 2.0], [2.0, 3.0, 1.0, 2.0];
+             stack = Int64[1, 2, 1, 2])
+    waterfall!(Axis(fig[2, 1]), [1.0, 2.0, 3.0], [2.0, -1.0, 3.0])
+    crossbar!(Axis(fig[2, 2]), [1.0, 2.0], [2.0, 3.0], [1.0, 2.0], [3.0, 4.0])
+    render!(fig, WasmCtx()); return Int64(0)
+end
 function w005_grid()
     fig = Figure(size = (400.0, 300.0))
     lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
@@ -1113,6 +1154,14 @@ end
                 boxplot!(ax, [3.0, 3.0, 3.0, 3.0, 3.0], [0.2, 0.4, 0.5, 0.6, 0.9])
                 violin!(ax, [4.0, 4.0, 4.0, 4.0, 4.0], [0.3, 0.4, 0.5, 0.6, 0.7])
                 pie!(Axis(fig[1, 2]), [3.0, 2.0, 1.0])
+            end),
+            ("groupedbars", w005_groupedbars, (300.0, 200.0), fig -> begin
+                barplot!(Axis(fig[1, 1]), [1.0, 1.0, 2.0, 2.0], [2.0, 3.0, 1.0, 2.0];
+                         dodge = Int64[1, 2, 1, 2])
+                barplot!(Axis(fig[1, 2]), [1.0, 1.0, 2.0, 2.0], [2.0, 3.0, 1.0, 2.0];
+                         stack = Int64[1, 2, 1, 2])
+                waterfall!(Axis(fig[2, 1]), [1.0, 2.0, 3.0], [2.0, -1.0, 3.0])
+                crossbar!(Axis(fig[2, 2]), [1.0, 2.0], [2.0, 3.0], [1.0, 2.0], [3.0, 4.0])
             end),
             ("grid", w005_grid, (400.0, 300.0), fig -> begin
                 lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])

@@ -48,29 +48,191 @@ function scatter!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real}
     return ax.scatters[end]
 end
 
+"min positive difference between the UNIQUE sorted values (Makie automatic width base)"
+function _min_unique_step(xs::Vector{Float64})
+    uniq = Float64[]
+    for v in xs
+        found = false
+        for u in uniq
+            v == u && (found = true; break)
+        end
+        found || push!(uniq, v)
+    end
+    sort!(uniq)
+    length(uniq) > 1 || return 1.0
+    step = Inf
+    for i in 2:length(uniq)
+        d = uniq[i] - uniq[i - 1]
+        d > 0.0 && d < step && (step = d)
+    end
+    return isfinite(step) ? step : 1.0
+end
+
 """
-    barplot!(ax, x, y; color = <cycle>, gap = 0.2, …)
+    barplot!(ax, x, y; color = <cycle or per-bar vector>, gap = 0.2,
+             dodge = <Int group ids>, stack = <Int stack ids>, …)
 """
 function barplot!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
                   color = nothing, gap::Real = 0.2, strokecolor = :black,
-                  strokewidth::Real = 0.0, label::String = "")
-    c = color === nothing ? _next_cycle_color(ax) : _color(color)
+                  strokewidth::Real = 0.0, label::String = "",
+                  dodge::AbstractVector{<:Integer} = Int64[], n_dodge::Integer = 0,
+                  dodge_gap::Real = 0.03, stack::AbstractVector{<:Integer} = Int64[])
     xs = _f64vec(x)
-    # Makie automatic width: the minimum gap between consecutive x values
-    step = 1.0
-    if length(xs) > 1
-        step = Inf
-        for i in 2:length(xs)
-            d = abs(xs[i] - xs[i - 1])
-            d > 0.0 && d < step && (step = d)
+    ys = _f64vec(y)
+    # per-bar colors when a vector is passed (grouped bars)
+    cols = NTuple{4,Float64}[]
+    c = if color === nothing
+        _next_cycle_color(ax)
+    elseif color isa AbstractVector
+        for ci in color
+            push!(cols, _color(ci))
         end
-        isfinite(step) || (step = 1.0)
+        _color(color[1])
+    else
+        _color(color)
     end
-    push!(ax.bars, BarPlotData(xs, _f64vec(y), c, Float64(gap),
+    step = _min_unique_step(xs)
+    width = (1.0 - Float64(gap)) * step
+    barw = width
+    if !isempty(dodge)
+        nd = n_dodge > 0 ? Int64(n_dodge) : Int64(maximum(dodge))
+        dg = Float64(dodge_gap)
+        dw = (1.0 - (Float64(nd) - 1.0) * dg) / Float64(nd)   # Makie scale_width
+        for i in eachindex(xs)
+            # Makie shift_dodge: (dw−1)/2 + (i−1)·(dw+gap), in width units
+            sh = (dw - 1.0) / 2.0 + (Float64(dodge[i]) - 1.0) * (dw + dg)
+            xs[i] += width * sh
+        end
+        barw = width * dw
+    end
+    fillto = Float64[]
+    if !isempty(stack)
+        # Makie stack_grouped_from_to: cumsum in stack order per (x, sign)
+        fillto = zeros(Float64, length(ys))
+        newy = Vector{Float64}(undef, length(ys))
+        done = falses(length(ys))
+        for i in eachindex(ys)
+            done[i] && continue
+            # group: same (already dodged) x and same sign
+            idxs = Int64[]
+            for j in eachindex(ys)
+                if !done[j] && xs[j] == xs[i] && (ys[j] >= 0.0) == (ys[i] >= 0.0)
+                    push!(idxs, j)
+                end
+            end
+            # ascending stack index order
+            for a in eachindex(idxs)
+                for b in (a + 1):length(idxs)
+                    if stack[idxs[b]] < stack[idxs[a]]
+                        idxs[a], idxs[b] = idxs[b], idxs[a]
+                    end
+                end
+            end
+            acc = 0.0
+            for j in idxs
+                fillto[j] = acc
+                acc += ys[j]
+                newy[j] = acc
+                done[j] = true
+            end
+        end
+        ys = newy
+    end
+    push!(ax.bars, BarPlotData(xs, ys, c, Float64(gap),
                                _color(strokecolor), Float64(strokewidth), label,
-                               (1.0 - Float64(gap)) * step))
+                               barw, fillto, cols))
     _push_plot!(ax, PLOT_BARPLOT, Int64(length(ax.bars)))
     return ax.bars[end]
+end
+
+"""
+    waterfall!(ax, x, y; color = <cycle>)
+
+Cumulative bars: each bar spans the running sum before → after its value.
+"""
+function waterfall!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+                    color = nothing, label::String = "")
+    xs = _f64vec(x)
+    ys = _f64vec(y)
+    c = color === nothing ? _next_cycle_color(ax) : _color(color)
+    fillto = Vector{Float64}(undef, length(ys))
+    tos = Vector{Float64}(undef, length(ys))
+    acc = 0.0
+    for i in eachindex(ys)
+        fillto[i] = acc
+        acc += ys[i]
+        tos[i] = acc
+    end
+    step = _min_unique_step(xs)
+    push!(ax.bars, BarPlotData(xs, tos, c, 0.2, (0.0, 0.0, 0.0, 1.0), 0.0, label,
+                               0.8 * step, fillto, NTuple{4,Float64}[]))
+    _push_plot!(ax, PLOT_BARPLOT, Int64(length(ax.bars)))
+    return ax.bars[end]
+end
+
+"""
+    crossbar!(ax, x, y, ymin, ymax; ...)
+
+Box from `ymin` to `ymax` with a midline at `y` (Makie crossbar).
+"""
+function crossbar!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real},
+                   ymin::AbstractVector{<:Real}, ymax::AbstractVector{<:Real};
+                   color = nothing, label::String = "")
+    xs = _f64vec(x)
+    c = if color === nothing
+        cc = _next_cycle_color(ax)
+        (cc[1], cc[2], cc[3], 0.8)
+    else
+        _color(color)
+    end
+    step = _min_unique_step(xs)
+    halfw = 0.4 * step
+    mid_x = Float64[]
+    mid_y = Float64[]
+    for i in eachindex(xs)
+        g = xs[i]
+        _push_poly!(ax, Float64[g - halfw, g + halfw, g + halfw, g - halfw],
+                    Float64[Float64(ymin[i]), Float64(ymin[i]), Float64(ymax[i]), Float64(ymax[i])],
+                    c, (0.0, 0.0, 0.0, 1.0), 1.0, label)
+        push!(mid_x, g - halfw); push!(mid_y, Float64(y[i]))
+        push!(mid_x, g + halfw); push!(mid_y, Float64(y[i]))
+    end
+    linesegments!(ax, mid_x, mid_y; color = (0.0, 0.0, 0.0, 1.0))
+    return ax.polys[end]
+end
+
+"""
+    series!(ax, curves::AbstractMatrix; ...) / series!(ax, flat, nseries, npoints)
+
+One line per matrix ROW, cycle-colored (Makie series). The flat overload is
+the wasm-kernel form (Matrix construction traps — WTGAP 3aaa51b9a688).
+"""
+function series!(ax::Axis, curves::AbstractMatrix{<:Real}; linewidth::Real = THEME_LINEWIDTH)
+    ns, np = size(curves)
+    for si in 1:ns
+        ys = Vector{Float64}(undef, np)
+        for j in 1:np
+            ys[j] = Float64(curves[si, j])
+        end
+        lines!(ax, collect(1.0:Float64(np)), ys; linewidth)
+    end
+    return ax.lines[end]
+end
+
+function series!(ax::Axis, flat::AbstractVector{<:Real}, nseries::Int64, npoints::Int64;
+                 linewidth::Real = THEME_LINEWIDTH)
+    for si in 1:nseries
+        ys = Vector{Float64}(undef, npoints)
+        for j in 1:npoints
+            ys[j] = Float64(flat[si + (j - 1) * nseries])
+        end
+        xs = Vector{Float64}(undef, npoints)
+        for j in 1:npoints
+            xs[j] = Float64(j)
+        end
+        lines!(ax, xs, ys; linewidth)
+    end
+    return ax.lines[end]
 end
 
 """
@@ -354,7 +516,8 @@ function hist!(ax::Axis, values::AbstractVector{<:Real}; bins::Integer = 15,
         centers[k] = lo + (Float64(k) - 0.5) * binw
     end
     push!(ax.bars, BarPlotData(centers, counts, c, 0.0,
-                               (0.0, 0.0, 0.0, 1.0), 0.0, label, binw))
+                               (0.0, 0.0, 0.0, 1.0), 0.0, label, binw,
+                               Float64[], NTuple{4,Float64}[]))
     _push_plot!(ax, PLOT_BARPLOT, Int64(length(ax.bars)))
     return ax.bars[end]
 end
@@ -734,10 +897,19 @@ data_limits(p::ScatterPlot) = (_extrema_finite(p.x)..., _extrema_finite(p.y)...)
 function data_limits(p::BarPlotData)
     xlo, xhi = _extrema_finite(p.x)
     ylo, yhi = _extrema_finite(p.y)
-    # bars reach down/up to 0 (fillto default) and extend ±width/2 in x —
-    # Makie barplot limits are the bar RECTANGLES' bounding box (oracle:
-    # x∈[1,4], width 0.8 → limits 0.41..4.59 after margins)
-    return (xlo - 0.5 * p.width, xhi + 0.5 * p.width, min(ylo, 0.0), max(yhi, 0.0))
+    blo = 0.0
+    bhi = 0.0
+    if !isempty(p.fillto)
+        # WTGAP: conditional tuple-destructure reassignment traps compiled —
+        # indexed form (same family as the data_limits splat trap)
+        ft = _extrema_finite(p.fillto)
+        blo = ft[1]
+        bhi = ft[2]
+    end
+    # bars reach to their baselines (0 / fillto) and extend ±width/2 in x —
+    # Makie barplot limits are the bar RECTANGLES' bounding box
+    return (xlo - 0.5 * p.width, xhi + 0.5 * p.width,
+            min(ylo, blo), max(yhi, bhi))
 end
 data_limits(p::HeatmapPlot) = (p.xs[1], p.xs[end], p.ys[1], p.ys[end])
 data_limits(p::ImagePlot) = (p.x0, p.x1, p.y0, p.y1)

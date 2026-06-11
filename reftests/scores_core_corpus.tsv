@@ -2,6 +2,7 @@
 0.2356	core: barplot
 0.2356	layout: span + relative colsize
 0.2336	core: 2x2 grid
+0.2335	recipes: crossbar + waterfall
 0.233	core: titles and labels
 0.2174	recipes: hist 8 bins
 0.1736	legend: axislegend rt
@@ -11,6 +12,7 @@
 0.1381	recipes: boxplot
 0.1371	recipes: pie
 0.1202	recipes: stem + errorbars
+0.1186	recipes: grouped + stacked bars
 0.1179	core: single line
 0.1179	core: two lines cycle
 0.1179	core: thick red line
@@ -20,9 +22,10 @@
 0.1179	core: lines + scatter
 0.1179	recipes: scatterlines
 0.1179	recipes: stairs pre
+0.1179	recipes: series
 0.1159	recipes: wave-1 annotations
 0.0902	core: heatmap viridis
 0.0902	colorbar: heatmap-linked vertical
 0.076	core: barplot negative
 0.0	axis: hidden decorations + spines
-# CORE_PARITY passed=26/26 @ tier 0.30 (T-005-tightened; text scenes ~0.15)
+# CORE_PARITY passed=29/29 @ tier 0.30 (T-005-tightened; text scenes ~0.15)

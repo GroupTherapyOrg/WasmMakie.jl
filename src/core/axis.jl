@@ -40,19 +40,35 @@ end
 
 function _plots_limits(ax::Axis)
     xlo = Inf; xhi = -Inf; ylo = Inf; yhi = -Inf
+    # WTGAP (chain-shape): one giant ternary over 12 differently-typed
+    # data_limits calls traps compiled — if/elseif statements instead
     for (kind, idx) in ax.plot_order
-        l = kind == PLOT_LINES ? data_limits(ax.lines[idx]) :
-            kind == PLOT_SCATTER ? data_limits(ax.scatters[idx]) :
-            kind == PLOT_BARPLOT ? data_limits(ax.bars[idx]) :
-            kind == PLOT_HEATMAP ? data_limits(ax.heatmaps[idx]) :
-            kind == PLOT_IMAGE ? data_limits(ax.images[idx]) :
-            kind == PLOT_HVLINES ? data_limits(ax.hvlines[idx]) :
-            kind == PLOT_HVSPAN ? data_limits(ax.hvspans[idx]) :
-            kind == PLOT_ABLINES ? data_limits(ax.ablines[idx]) :
-            kind == PLOT_SEGMENTS ? data_limits(ax.segments[idx]) :
-            kind == PLOT_FILLEDCURVE ? data_limits(ax.filledcurves[idx]) :
-            kind == PLOT_BAND ? data_limits(ax.bands[idx]) :
-            data_limits(ax.polys[idx])
+        l = (0.0, 0.0, 0.0, 0.0)
+        if kind == PLOT_LINES
+            l = data_limits(ax.lines[idx])
+        elseif kind == PLOT_SCATTER
+            l = data_limits(ax.scatters[idx])
+        elseif kind == PLOT_BARPLOT
+            l = data_limits(ax.bars[idx])
+        elseif kind == PLOT_HEATMAP
+            l = data_limits(ax.heatmaps[idx])
+        elseif kind == PLOT_IMAGE
+            l = data_limits(ax.images[idx])
+        elseif kind == PLOT_HVLINES
+            l = data_limits(ax.hvlines[idx])
+        elseif kind == PLOT_HVSPAN
+            l = data_limits(ax.hvspans[idx])
+        elseif kind == PLOT_ABLINES
+            l = data_limits(ax.ablines[idx])
+        elseif kind == PLOT_SEGMENTS
+            l = data_limits(ax.segments[idx])
+        elseif kind == PLOT_FILLEDCURVE
+            l = data_limits(ax.filledcurves[idx])
+        elseif kind == PLOT_BAND
+            l = data_limits(ax.bands[idx])
+        else
+            l = data_limits(ax.polys[idx])
+        end
         l[1] < xlo && (xlo = l[1])
         l[2] > xhi && (xhi = l[2])
         l[3] < ylo && (ylo = l[3])

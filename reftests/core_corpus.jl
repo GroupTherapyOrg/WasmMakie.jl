@@ -185,6 +185,40 @@ const CORPUS = Scene2[
         (Makie, fig) -> Makie.violin!(Makie.Axis(fig[1, 1]),
                                       [1.0, 1, 1, 1, 1, 2, 2, 2, 2, 2],
                                       [1.0, 2, 3, 4, 5, 2, 3, 3, 4, 5])),
+    Scene2("recipes: grouped + stacked bars",
+        fig -> (WasmMakie.barplot!(WasmMakie.Axis(fig[1, 1]),
+                    [1.0, 1, 2, 2, 3, 3], [2.0, 3, 1, 2, 4, 1];
+                    dodge = [1, 2, 1, 2, 1, 2],
+                    color = [(0.0, 0.44705883, 0.69803923, 1.0), (0.9019608, 0.62352943, 0.0, 1.0),
+                             (0.0, 0.44705883, 0.69803923, 1.0), (0.9019608, 0.62352943, 0.0, 1.0),
+                             (0.0, 0.44705883, 0.69803923, 1.0), (0.9019608, 0.62352943, 0.0, 1.0)]);
+                WasmMakie.barplot!(WasmMakie.Axis(fig[1, 2]),
+                    [1.0, 1, 2, 2], [2.0, 3, 1, 2];
+                    stack = [1, 2, 1, 2],
+                    color = [(0.0, 0.44705883, 0.69803923, 1.0), (0.9019608, 0.62352943, 0.0, 1.0),
+                             (0.0, 0.44705883, 0.69803923, 1.0), (0.9019608, 0.62352943, 0.0, 1.0)])),
+        (Makie, fig) -> (wc = Makie.wong_colors();
+                Makie.barplot!(Makie.Axis(fig[1, 1]),
+                    [1.0, 1, 2, 2, 3, 3], [2.0, 3, 1, 2, 4, 1];
+                    dodge = [1, 2, 1, 2, 1, 2], color = wc[[1, 2, 1, 2, 1, 2]]);
+                Makie.barplot!(Makie.Axis(fig[1, 2]),
+                    [1.0, 1, 2, 2], [2.0, 3, 1, 2];
+                    stack = [1, 2, 1, 2], color = wc[[1, 2, 1, 2]]))),
+    Scene2("recipes: crossbar + waterfall",
+        fig -> (WasmMakie.crossbar!(WasmMakie.Axis(fig[1, 1]), [1.0, 2.0], [2.0, 3.0],
+                                    [1.0, 2.0], [3.0, 4.0]);
+                WasmMakie.waterfall!(WasmMakie.Axis(fig[1, 2]), [1.0, 2, 3, 4],
+                                     [2.0, -1.0, 3.0, -0.5])),
+        (Makie, fig) -> (Makie.crossbar!(Makie.Axis(fig[1, 1]), [1.0, 2.0], [2.0, 3.0],
+                                         [1.0, 2.0], [3.0, 4.0]);
+                Makie.waterfall!(Makie.Axis(fig[1, 2]), [1.0, 2, 3, 4],
+                                 [2.0, -1.0, 3.0, -0.5]))),
+    Scene2("recipes: series",
+        fig -> WasmMakie.series!(WasmMakie.Axis(fig[1, 1]),
+                                 [0.1 0.7 0.4 0.9; 0.9 0.2 0.6 0.1; 0.5 0.5 0.8 0.3]),
+        (Makie, fig) -> Makie.series!(Makie.Axis(fig[1, 1]),
+                                      [0.1 0.7 0.4 0.9; 0.9 0.2 0.6 0.1; 0.5 0.5 0.8 0.3];
+                                      color = Makie.wong_colors()[1:3])),
     # NOTE: "recipes: density" and "recipes: band" corpus scenes are deferred —
     # the Makie versions lower to Band/mesh, which CanvasMakie draws after R-005.
 ]
