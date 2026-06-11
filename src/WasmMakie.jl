@@ -47,7 +47,9 @@ include("draw/scatter.jl")
 include("draw/image.jl")
 include("draw/poly.jl")
 include("core/theme.jl")
+include("core/plots.jl")
 include("core/figure.jl")
+include("core/plot_api.jl")
 include("core/geometry.jl")
 include("core/layout.jl")
 include("vendor/ticks.jl")
@@ -58,5 +60,6 @@ include("vendor/colors.jl")
 export CANVAS_OPS, import_specs, js_glue
 export AbstractCtx, WasmCtx, RecordingCtx, Command, to_json
 export Figure, Axis, GridPosition, cycle_color
+export lines!, scatter!, barplot!, heatmap!, image!
 
 end # module

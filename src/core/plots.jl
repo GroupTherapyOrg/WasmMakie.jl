@@ -1,0 +1,106 @@
+# The static core's plot types + plotting API — Makie's user-facing functions
+# (`lines!`, `scatter!`, `barplot!`, `heatmap!`, `image!`) over concrete typed
+# structs with Makie's defaults (captured from default_theme: barplot gap 0.2,
+# strokewidths 0, linestyle solid). No reactive spine: plot calls append data,
+# render walks it.
+
+const PLOT_LINES = Int64(1)
+const PLOT_SCATTER = Int64(2)
+const PLOT_BARPLOT = Int64(3)
+const PLOT_HEATMAP = Int64(4)
+const PLOT_IMAGE = Int64(5)
+
+# linestyles in Makie's encoding (vendor/ticks of lines draw layer consume these)
+const LINESTYLE_SOLID = Int64(0)
+const LINESTYLE_DASH = Int64(1)
+const LINESTYLE_DOT = Int64(2)
+const LINESTYLE_DASHDOT = Int64(3)
+
+# markers (subset; grows with the corpus)
+const MARKER_CIRCLE = Int64(0)
+const MARKER_RECT = Int64(1)
+const MARKER_UTRIANGLE = Int64(2)
+
+mutable struct LinesPlot
+    x::Vector{Float64}
+    y::Vector{Float64}
+    color::NTuple{4,Float64}
+    linewidth::Float64
+    linestyle::Int64
+end
+
+mutable struct ScatterPlot
+    x::Vector{Float64}
+    y::Vector{Float64}
+    color::NTuple{4,Float64}
+    markersize::Float64
+    marker::Int64
+    strokecolor::NTuple{4,Float64}
+    strokewidth::Float64
+end
+
+mutable struct BarPlotData
+    x::Vector{Float64}
+    y::Vector{Float64}
+    color::NTuple{4,Float64}
+    gap::Float64
+    strokecolor::NTuple{4,Float64}
+    strokewidth::Float64
+end
+
+mutable struct HeatmapPlot
+    xs::Vector{Float64}      # nx+1 edges
+    ys::Vector{Float64}      # ny+1 edges
+    values::Matrix{Float64}
+    colorrange_min::Float64  # NaN = automatic
+    colorrange_max::Float64
+end
+
+mutable struct ImagePlot
+    x0::Float64
+    x1::Float64
+    y0::Float64
+    y1::Float64
+    pixels::Vector{NTuple{4,Float64}}  # column-major flat (i + (j-1)*ni)
+    ni::Int64
+    nj::Int64
+    interpolate::Bool
+end
+
+"Named colors the API accepts as Symbols (CSS values, matching Makie.to_color)."
+function named_color(s::Symbol)::NTuple{4,Float64}
+    s === :black && return (0.0, 0.0, 0.0, 1.0)
+    s === :white && return (1.0, 1.0, 1.0, 1.0)
+    s === :red && return (1.0, 0.0, 0.0, 1.0)
+    s === :green && return (0.0, 128.0 / 255.0, 0.0, 1.0)
+    s === :blue && return (0.0, 0.0, 1.0, 1.0)
+    s === :orange && return (1.0, 165.0 / 255.0, 0.0, 1.0)
+    s === :purple && return (128.0 / 255.0, 0.0, 128.0 / 255.0, 1.0)
+    s === :gray && return (128.0 / 255.0, 128.0 / 255.0, 128.0 / 255.0, 1.0)
+    s === :grey && return (128.0 / 255.0, 128.0 / 255.0, 128.0 / 255.0, 1.0)
+    s === :cyan && return (0.0, 1.0, 1.0, 1.0)
+    s === :magenta && return (1.0, 0.0, 1.0, 1.0)
+    s === :yellow && return (1.0, 1.0, 0.0, 1.0)
+    s === :transparent && return (0.0, 0.0, 0.0, 0.0)
+    error("WasmMakie: unknown named color :$s — pass an (r, g, b, a) tuple")
+end
+
+_color(c::NTuple{4,Float64}) = c
+_color(c::Symbol) = named_color(c)
+
+_f64vec(v::Vector{Float64}) = v
+_f64vec(v::AbstractVector{<:Real}) = Float64[Float64(x) for x in v]
+
+_linestyle(s::Symbol)::Int64 =
+    s === :solid ? LINESTYLE_SOLID :
+    s === :dash ? LINESTYLE_DASH :
+    s === :dot ? LINESTYLE_DOT :
+    s === :dashdot ? LINESTYLE_DASHDOT :
+    error("WasmMakie: unsupported linestyle :$s")
+
+_marker(s::Symbol)::Int64 =
+    s === :circle ? MARKER_CIRCLE :
+    s === :rect ? MARKER_RECT :
+    s === :utriangle ? MARKER_UTRIANGLE :
+    error("WasmMakie: unsupported marker :$s")
+

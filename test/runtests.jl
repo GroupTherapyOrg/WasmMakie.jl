@@ -492,6 +492,64 @@ end
     @test parse(Float64, strip(out)) === native
 end
 
+@testset "plot structs + API (C-007)" begin
+    fig = Figure()
+    ax = Axis(fig[1, 1])
+
+    # lines!: cycle color, range input, function input
+    l1 = lines!(ax, 0:0.5:10, [sin(v) for v in 0:0.5:10])
+    @test l1.color == cycle_color(1)
+    @test l1.linewidth == 1.5 && l1.linestyle == WasmMakie.LINESTYLE_SOLID
+    @test length(l1.x) == 21 && l1.x[2] == 0.5
+    l2 = lines!(ax, 0:1.0:5, sin; color = :red, linestyle = :dash)
+    @test l2.color == (1.0, 0.0, 0.0, 1.0)
+    @test l2.linestyle == WasmMakie.LINESTYLE_DASH
+    @test l2.y[1] == sin(0.0) && l2.y[end] == sin(5.0)
+
+    # scatter!: third plot continues the cycle
+    s1 = scatter!(ax, [1, 2, 3], [4, 5, 6])
+    @test s1.color == cycle_color(3)
+    @test s1.markersize == 9.0 && s1.marker == WasmMakie.MARKER_CIRCLE
+    @test s1.strokewidth == 0.0
+
+    # barplot!: defaults from Makie (gap 0.2), limits reach to 0
+    b1 = barplot!(ax, [1, 2], [3.0, -1.0]; color = (0.0, 0.0, 1.0, 1.0))
+    @test b1.gap == 0.2
+    @test WasmMakie.data_limits(b1) == (1.0, 2.0, -1.0, 3.0)
+
+    # heatmap!: centers→edges conversion + edges passthrough
+    h1 = heatmap!(ax, [1.0, 2.0], [10.0, 20.0], [1.0 2.0; 3.0 4.0])
+    @test h1.xs == [0.5, 1.5, 2.5]          # centers expanded to edges
+    @test h1.ys == [5.0, 15.0, 25.0]
+    h2 = heatmap!(ax, [0, 1, 2], [0, 1, 2], [1.0 2.0; 3.0 4.0])
+    @test h2.xs == [0.0, 1.0, 2.0]          # already edges
+    @test isnan(h2.colorrange_min)
+
+    # image!: column-major flattening
+    px = [(1.0, 0.0, 0.0, 1.0) (0.0, 1.0, 0.0, 1.0);
+          (0.0, 0.0, 1.0, 1.0) (1.0, 1.0, 0.0, 1.0)]
+    i1 = image!(ax, (0, 10), (0, 20), px)
+    @test i1.ni == 2 && i1.nj == 2
+    @test i1.pixels[1] == (1.0, 0.0, 0.0, 1.0)   # [1,1]
+    @test i1.pixels[2] == (0.0, 0.0, 1.0, 1.0)   # [2,1] (column-major)
+    @test WasmMakie.data_limits(i1) == (0.0, 10.0, 0.0, 20.0)
+
+    # draw order tracks every call in sequence
+    @test ax.plot_order == [
+        (WasmMakie.PLOT_LINES, 1), (WasmMakie.PLOT_LINES, 2),
+        (WasmMakie.PLOT_SCATTER, 1), (WasmMakie.PLOT_BARPLOT, 1),
+        (WasmMakie.PLOT_HEATMAP, 1), (WasmMakie.PLOT_HEATMAP, 2),
+        (WasmMakie.PLOT_IMAGE, 1),
+    ]
+
+    # NaN-tolerant data limits
+    l3 = lines!(ax, [1.0, NaN, 3.0], [5.0, NaN, 7.0])
+    @test WasmMakie.data_limits(l3) == (1.0, 3.0, 5.0, 7.0)
+
+    # named colors error loudly on unknowns
+    @test_throws ErrorException lines!(ax, [1, 2], [1, 2]; color = :no_such_color)
+end
+
 @testset "vendored optimize_ticks sanity (C-002)" begin
     ticks, lo, hi = WasmMakie.optimize_ticks(0.0, 10.0)
     @test ticks == [0.0, 5.0, 10.0]

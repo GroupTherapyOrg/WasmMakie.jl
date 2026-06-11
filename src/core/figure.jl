@@ -24,13 +24,23 @@ mutable struct Axis
     titlesize::Float64
     xlabelsize::Float64
     ylabelsize::Float64
+    # typed plot containers (closed-world: one concrete vector per kind,
+    # types defined in plots.jl which is included before this file) + order
+    lines::Vector{LinesPlot}
+    scatters::Vector{ScatterPlot}
+    bars::Vector{BarPlotData}
+    heatmaps::Vector{HeatmapPlot}
+    images::Vector{ImagePlot}
+    plot_order::Vector{Tuple{Int64,Int64}}  # (PLOT_* kind, index)
 end
 
 function Axis(; title::String = "", xlabel::String = "", ylabel::String = "")
     return Axis(1, 1, title, xlabel, ylabel,
                 NaN, NaN, NaN, NaN,
                 16.0,  # Makie Axis titlesize default (@inherit titlesize 16f0)
-                THEME_FONTSIZE, THEME_FONTSIZE)
+                THEME_FONTSIZE, THEME_FONTSIZE,
+                LinesPlot[], ScatterPlot[], BarPlotData[], HeatmapPlot[],
+                ImagePlot[], Tuple{Int64,Int64}[])
 end
 
 """
