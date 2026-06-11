@@ -325,6 +325,42 @@ end
     end
 end
 
+@testset "static core: Figure/Axis/theme (C-001)" begin
+    fig = Figure()
+    @test fig.width == 600.0 && fig.height == 450.0
+    @test fig.backgroundcolor == (1.0, 1.0, 1.0, 1.0)
+    @test fig.padding == 16.0
+    @test fig.rowgap == 18.0 && fig.colgap == 18.0
+    @test isempty(fig.axes)
+
+    fig2 = Figure(size = (800, 300), figure_padding = 8)
+    @test fig2.width == 800.0 && fig2.height == 300.0
+    @test fig2.padding == 8.0
+
+    gp = fig[2, 3]
+    @test gp isa GridPosition
+    @test gp.row == 2 && gp.col == 3
+
+    ax = Axis(fig[1, 1]; title = "T", xlabel = "x", ylabel = "y")
+    @test length(fig.axes) == 1 && fig.axes[1] === ax
+    @test ax.row == 1 && ax.col == 1
+    @test ax.title == "T" && ax.xlabel == "x" && ax.ylabel == "y"
+    @test isnan(ax.xmin) && isnan(ax.ymax)        # automatic limits
+    @test ax.titlesize == 16.0 && ax.xlabelsize == 14.0
+
+    Axis(fig[2, 2])
+    @test WasmMakie.grid_extents(fig) == (2, 2)
+
+    # Wong palette: exact Makie values, mod-7 cycle
+    @test cycle_color(1) == (0.0, 114 / 255, 178 / 255, 1.0)
+    @test cycle_color(7) == (240 / 255, 228 / 255, 66 / 255, 1.0)
+    @test cycle_color(8) == cycle_color(1)
+
+    @test WasmMakie.THEME_FONTSIZE == 14.0
+    @test WasmMakie.THEME_LINEWIDTH == 1.5
+    @test WasmMakie.THEME_MARKERSIZE == 9.0
+end
+
 @testset "WasmMakie scaffold" begin
     @test WasmMakie isa Module
     @test pkgversion(WasmMakie) == v"0.0.1"

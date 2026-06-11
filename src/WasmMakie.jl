@@ -46,8 +46,11 @@ include("draw/lines.jl")
 include("draw/scatter.jl")
 include("draw/image.jl")
 include("draw/poly.jl")
+include("core/theme.jl")
+include("core/figure.jl")
 
 export CANVAS_OPS, import_specs, js_glue
 export AbstractCtx, WasmCtx, RecordingCtx, Command, to_json
+export Figure, Axis, GridPosition, cycle_color
 
 end # module

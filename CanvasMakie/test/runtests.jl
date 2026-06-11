@@ -3,6 +3,31 @@ using Makie
 using CanvasMakie
 using ColorTypes
 using FixedPointNumbers
+import WasmMakie
+
+@testset "static-core theme parity vs live Makie (C-001)" begin
+    th = Makie.MAKIE_DEFAULT_THEME
+    val(k) = Makie.to_value(th[k])
+    @test WasmMakie.THEME_FONTSIZE == Float64(val(:fontsize))
+    @test WasmMakie.THEME_FIGURE_PADDING == Float64(val(:figure_padding))
+    @test WasmMakie.THEME_ROWGAP == Float64(val(:rowgap))
+    @test WasmMakie.THEME_COLGAP == Float64(val(:colgap))
+    @test WasmMakie.THEME_SIZE == Float64.(Tuple(val(:size)))
+    @test WasmMakie.THEME_MARKERSIZE == Float64(val(:markersize))
+    @test WasmMakie.THEME_LINEWIDTH == Float64(val(:linewidth))
+    @test WasmMakie.THEME_MITER_LIMIT_ANGLE == Float64(val(:miter_limit))
+    @test WasmMakie.THEME_COLORMAP === val(:colormap)
+    @test WasmMakie.THEME_FONT_REGULAR == String(Makie.to_value(th[:fonts][:regular]))
+
+    bg = Makie.to_color(val(:backgroundcolor))
+    @test WasmMakie.THEME_BACKGROUNDCOLOR ==
+          (Float64(red(bg)), Float64(green(bg)), Float64(blue(bg)), Float64(alpha(bg)))
+
+    for (i, c) in enumerate(Makie.wong_colors())
+        got = WasmMakie.cycle_color(Int64(i))
+        @test all(abs.(got .- (Float64(red(c)), Float64(green(c)), Float64(blue(c)), Float64(alpha(c)))) .< 1e-6)
+    end
+end
 
 const HAVE_RENDERER = CanvasMakie.renderer_available()
 
