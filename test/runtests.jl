@@ -61,6 +61,77 @@ end
     @test occursin("JS GLUE OK: 58 ops", out)
 end
 
+@testset "ctx duality (F-003)" begin
+    # Every op has methods for both ctx types
+    for op in WasmMakie.CANVAS_OPS
+        f = getfield(WasmMakie, op.name)
+        sig_w = Tuple{WasmCtx, [T for (_, T) in op.args]...}
+        sig_r = Tuple{RecordingCtx, [T for (_, T) in op.args]...}
+        @test hasmethod(f, sig_w)
+        @test hasmethod(f, sig_r)
+    end
+
+    # WasmCtx forwards to stubs (native no-ops with stub return values)
+    w = WasmCtx()
+    @test WasmMakie.move_to(w, 1.0, 2.0) === Int64(0)
+    @test WasmMakie.measure_text_buf_width(w) === 0.0
+
+    # A draw program, written once, runs against either ctx
+    function program(ctx)
+        WasmMakie.begin_path(ctx)
+        WasmMakie.move_to(ctx, 1.0, 2.0)
+        WasmMakie.line_to(ctx, 3.0, 4.5)
+        WasmMakie.set_line_dash4(ctx, 6.0, 4.0, 0.0, 0.0, Int64(2))
+        WasmMakie.stroke(ctx)
+        return nothing
+    end
+    program(w)  # compiles & runs against WasmCtx
+
+    r1 = RecordingCtx(); program(r1)
+    @test length(r1.commands) == 5
+    @test r1.commands[1] == Command(:begin_path, Float64[], Int64[])
+    @test r1.commands[2] == Command(:move_to, [1.0, 2.0], Int64[])
+    @test r1.commands[4] == Command(:set_line_dash4, [6.0, 4.0, 0.0, 0.0], Int64[2])
+
+    # Command-stream equality: same program ⇒ equal; different ⇒ not
+    r2 = RecordingCtx(); program(r2)
+    @test r1.commands == r2.commands
+    WasmMakie.line_to(r2, 9.0, 9.0)
+    @test r1.commands != r2.commands
+
+    # Int64 args preserved exactly (no float round-trip)
+    r3 = RecordingCtx()
+    big = Int64(2)^60 + 1
+    WasmMakie.text_buf_push(r3, big)
+    @test r3.commands[1].iargs == [big]
+
+    # Deterministic value stand-ins track font + buffer state
+    r4 = RecordingCtx()
+    WasmMakie.set_font(r4, Int64(0), 12.0, Int64(400), Int64(0))
+    WasmMakie.text_buf_clear(r4)
+    WasmMakie.text_buf_push(r4, Int64(72))
+    WasmMakie.text_buf_push(r4, Int64(105))
+    @test WasmMakie.measure_text_buf_width(r4) == 0.55 * 12.0 * 2
+    @test WasmMakie.measure_text_buf_ascent(r4) == 0.8 * 12.0
+    @test WasmMakie.width(r4) == 640.0 && WasmMakie.height(r4) == 480.0
+    @test WasmMakie.device_pixel_ratio(r4) == 1.0
+    # value ops are themselves part of the recorded stream
+    @test r4.commands[end].op === :device_pixel_ratio
+
+    # JSON serialization: exact shape, declaration-order interleaving
+    r5 = RecordingCtx()
+    WasmMakie.move_to(r5, 1.0, 2.5)
+    WasmMakie.arc(r5, 0.0, 0.0, 5.0, 0.0, 3.14, Int64(1))
+    json = to_json(r5)
+    @test json == "[{\"op\":\"move_to\",\"args\":[1.0,2.5]}," *
+                  "{\"op\":\"arc\",\"args\":[0.0,0.0,5.0,0.0,3.14,1]}]"
+    @test_throws ArgumentError to_json([Command(:move_to, [NaN, 0.0], Int64[])])
+
+    # JSON is parseable (node is the consumer)
+    parsed = read(`node -e "const a=JSON.parse(process.argv[1]);console.log(a.length)" $json`, String)
+    @test strip(parsed) == "2"
+end
+
 @testset "WasmMakie scaffold" begin
     @test WasmMakie isa Module
     @test pkgversion(WasmMakie) == v"0.0.1"
