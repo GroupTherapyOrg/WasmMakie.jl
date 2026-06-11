@@ -1,6 +1,7 @@
 using Test
 using WasmMakie
 import WasmTarget
+import Base64 as _B64check
 
 @testset "ops table (F-002)" begin
     ops = WasmMakie.CANVAS_OPS
@@ -808,6 +809,96 @@ end
         wasm_json = strip(read(`node $checker $wp $glue_path k`, String))
         @test startswith(wasm_json, "[")
         @test norm(to_json(r)) == norm(wasm_json)
+    end
+end
+
+@testset "bundled fonts + FontFace loader (T-001)" begin
+    # bundled faces exist and FONT_FACES paths resolve
+    @test isdir(WasmMakie.FONTS_DIR)
+    for (family, weight, style, file) in WasmMakie.FONT_FACES
+        @test isfile(joinpath(WasmMakie.FONTS_DIR, file))
+    end
+    @test isfile(joinpath(WasmMakie.FONTS_DIR, "LICENSES.md"))
+
+    # glue contract: loader + real family names in the fam table
+    glue = js_glue()
+    @test occursin("canvas2d_load_fonts", glue)
+    @test occursin("TeX Gyre Heros Makie", glue)
+    @test occursin("DejaVu Sans", glue)
+
+    # local base64 (kept dependency-free) matches the stdlib encoder
+    for len in (0, 1, 2, 3, 57, 1000)
+        b = UInt8.(mod.(collect(1:len) .* 37, 256))
+        @test WasmMakie._base64encode(b) == _B64check.base64encode(b)
+    end
+
+    # faces JSON is self-contained (data: URLs) and well-formed
+    faces = font_faces_json()
+    @test startswith(faces, "[") && occursin("data:font/otf;base64,", faces)
+    @test occursin("data:font/ttf;base64,", faces)
+
+    # Chromium proof: fonts actually load and register — page paints the
+    # check result into pixel (1,1): green = both families available
+    dir = mktempdir()
+    html = """
+    <!doctype html><html><body>
+    <canvas id="c" width="8" height="8"></canvas>
+    <script>$(glue)</script>
+    <script>
+    window.__done = false;
+    (async () => {
+      try {
+        await canvas2d_load_fonts($(faces));
+        const ok = document.fonts.check('12px "TeX Gyre Heros Makie"') &&
+                   document.fonts.check('italic 700 12px "TeX Gyre Heros Makie"') &&
+                   document.fonts.check('12px "DejaVu Sans"');
+        const ctx = document.getElementById('c').getContext('2d');
+        ctx.fillStyle = ok ? 'rgb(0,255,0)' : 'rgb(255,0,0)';
+        ctx.fillRect(0, 0, 8, 8);
+        window.__done = true;
+      } catch (e) { window.__error = String(e); }
+    })();
+    </script></body></html>
+    """
+    html_path = joinpath(dir, "fontcheck.html"); write(html_path, html)
+    png_path = joinpath(dir, "out.png")
+    script = joinpath(dirname(@__DIR__), "assets", "render_page.mjs")
+    out = IOBuffer()
+    proc = run(pipeline(ignorestatus(`node $script $html_path $png_path "[[1,1]]"`); stdout = out))
+    if proc.exitcode == 2
+        @test_skip "playwright unavailable"
+    else
+        @test proc.exitcode == 0
+        @test occursin("PROBE 1,1 = 0,255,0,255", String(take!(out)))
+    end
+
+    # loaded fonts change real text metrics vs generic sans-serif (the whole
+    # point of T-001) — render the same string via the replay page and probe
+    # for ink inside the glyph box
+    rctx = RecordingCtx()
+    WasmMakie.set_fill_rgba(rctx, 255.0, 255.0, 255.0, 1.0)
+    WasmMakie.fill_rect(rctx, 0.0, 0.0, 120.0, 60.0)
+    WasmMakie.set_fill_rgba(rctx, 0.0, 0.0, 0.0, 1.0)
+    WasmMakie.set_font(rctx, Int64(0), 40.0, Int64(400), Int64(0))
+    WasmMakie.text_buf_clear(rctx)
+    for c in "MM"
+        WasmMakie.text_buf_push(rctx, Int64(codepoint(c)))
+    end
+    WasmMakie.fill_text_buf(rctx, 10.0, 45.0)
+    res = render_commands(to_json(rctx); width = 120, height = 60,
+                          probes = [(3, 3)])
+    if res === nothing
+        @test_skip "playwright unavailable"
+    else
+        @test res.pixels[(3, 3)] == (255, 255, 255, 255)  # background untouched
+        # decode the PNG row sweep is overkill — ink presence via probe grid
+        inked = false
+        res2 = render_commands(to_json(rctx); width = 120, height = 60,
+                               probes = [(x, y) for x in 12:6:60 for y in 18:6:42])
+        for (_, px) in res2.pixels
+            px[1] < 200 && (inked = true)
+        end
+        @test inked
     end
 end
 

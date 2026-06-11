@@ -42,7 +42,8 @@ expect('beginPath called', find('beginPath').length === 1);
 expect('moveTo(1, 2)', find('moveTo').some((e) => e[1] === 1 && e[2] === 2));
 expect('arc ccw flag reconverted to boolean true', find('arc').some((e) => e[6] === true));
 expect('setLineDash sliced to [6, 4]', find('setLineDash').some((e) => JSON.stringify(e[1]) === '[6,4]'));
-expect("font assembled as '400 12px sans-serif'", ctxState.font === '400 12px sans-serif');
+expect('font assembled with bundled Makie family (T-001)',
+  ctxState.font === '400 12px "TeX Gyre Heros Makie", sans-serif');
 expect("fillText('Hi', 10, 20) from buffered codepoints",
   find('fillText').some((e) => e[1] === 'Hi' && e[2] === 10 && e[3] === 20));
 expect("lineCap set to 'round'", ctxState.lineCap === 'round');

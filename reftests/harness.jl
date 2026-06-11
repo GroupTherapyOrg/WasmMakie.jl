@@ -30,11 +30,14 @@ function _page_html(commands_json, specs_json, glue, replay_src; width, height)
     <script>$(replay_src)</script>
     <script>
     window.__done = false;
-    try {
-      const canvas = document.getElementById('c');
-      replayCommands($(commands_json), canvas, canvas2d_imports, $(specs_json));
-      window.__done = true;
-    } catch (e) { window.__error = String(e); }
+    (async () => {
+      try {
+        await canvas2d_load_fonts($(WasmMakie.font_faces_json()));
+        const canvas = document.getElementById('c');
+        replayCommands($(commands_json), canvas, canvas2d_imports, $(specs_json));
+        window.__done = true;
+      } catch (e) { window.__error = String(e); }
+    })();
     </script></body></html>
     """
 end
@@ -87,6 +90,7 @@ function _wasm_page_html(wasm_b64, glue, export_name; width, height)
     window.__done = false;
     (async () => {
       try {
+        await canvas2d_load_fonts($(WasmMakie.font_faces_json()));
         const bytes = Uint8Array.from(atob('$(wasm_b64)'), (ch) => ch.charCodeAt(0));
         const canvas = document.getElementById('c');
         const imports = { canvas2d: canvas2d_imports(canvas), Math: { pow: Math.pow } };

@@ -22,11 +22,14 @@ function _page_html(commands_json, specs_json, glue, replay_src; width, height)
     <script>$(replay_src)</script>
     <script>
     window.__done = false;
-    try {
-      const canvas = document.getElementById('c');
-      replayCommands($(commands_json), canvas, canvas2d_imports, $(specs_json));
-      window.__done = true;
-    } catch (e) { window.__error = String(e); }
+    (async () => {
+      try {
+        await canvas2d_load_fonts($(WasmMakie.font_faces_json()));
+        const canvas = document.getElementById('c');
+        replayCommands($(commands_json), canvas, canvas2d_imports, $(specs_json));
+        window.__done = true;
+      } catch (e) { window.__error = String(e); }
+    })();
     </script></body></html>
     """
 end

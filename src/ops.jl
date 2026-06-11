@@ -204,8 +204,10 @@ end
 The canonical JS import-object factory, generated from the ops table. Defines
 `canvas2d_imports(target)` where `target` is a `<canvas>` element or a 2d
 context; returns the object to pass as the `canvas2d` wasm import module.
-Hosts embed this string verbatim — it is the only JS implementation of the
-ops table anywhere.
+Also defines `canvas2d_load_fonts(faces)` — an async FontFace loader hosts
+await before drawing so `fill_text`/`measure_text` use the bundled Makie
+fonts (T-001; faces shape = `font_faces_json()`). Hosts embed this string
+verbatim — it is the only JS implementation of the ops table anywhere.
 """
 function js_glue()
     entries = join(["    $(op.name): $(op.js)" for op in CANVAS_OPS], ",\n")
@@ -213,12 +215,20 @@ function js_glue()
 function canvas2d_imports(target) {
   const ctx = (target && target.getContext) ? target.getContext('2d') : target;
   const S = { grads: [], buf: '', dash: [], img: null, imgW: 0, imgH: 0, imgI: 0,
-              fonts: ['sans-serif', 'serif', 'monospace'],
+              fonts: ['"TeX Gyre Heros Makie", sans-serif', '"DejaVu Sans", sans-serif', 'monospace'],
               font: { fam: 0, size: 10, weight: 400, italic: 0 } };
   const setFont = () => { ctx.font = (S.font.italic ? 'italic ' : '') + S.font.weight + ' ' + S.font.size + 'px ' + S.fonts[S.font.fam]; };
   return {
 $entries
   };
+}
+async function canvas2d_load_fonts(faces) {
+  if (typeof document === 'undefined' || !document.fonts) return false;
+  await Promise.all(faces.map(f =>
+    new FontFace(f.family, 'url(' + f.url + ')',
+                 { weight: String(f.weight), style: f.style })
+      .load().then(face => { document.fonts.add(face); })));
+  return true;
 }
 """
 end

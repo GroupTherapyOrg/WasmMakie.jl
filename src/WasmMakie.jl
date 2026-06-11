@@ -41,6 +41,7 @@ module WasmMakie
 #   embed.jl — embedding contract (M7)
 
 include("ops.jl")
+include("fonts.jl")
 include("ctx.jl")
 include("draw/lines.jl")
 include("draw/scatter.jl")
@@ -60,7 +61,7 @@ include("vendor/colors.jl")
 include("core/axis.jl")
 include("core/render.jl")
 
-export CANVAS_OPS, import_specs, js_glue
+export CANVAS_OPS, import_specs, js_glue, font_faces_json, FONT_FACES
 export AbstractCtx, WasmCtx, RecordingCtx, Command, to_json
 export Figure, Axis, GridPosition, cycle_color
 export lines!, scatter!, barplot!, heatmap!, image!, render!
