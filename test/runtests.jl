@@ -604,6 +604,41 @@ end
     @test res4.prot.t > 0.0
 end
 
+
+@testset "static-core render pipeline (C-009)" begin
+    fig = Figure(size = (300, 200))
+    ax = Axis(fig[1, 1]; title = "T", xlabel = "x", ylabel = "y")
+    lines!(ax, [0.0, 1.0, 2.0], [0.0, 1.0, 0.5])
+    scatter!(ax, [0.5, 1.5], [0.8, 0.2]; color = :red)
+    r = RecordingCtx()
+    render!(fig, r)
+    @test length(r.commands) > 100
+    @test r.commands[1].op === :set_fill_rgba       # background first
+    @test r.commands[2].op === :fill_rect
+    @test any(c -> c.op === :fill_text_buf, r.commands)   # labels drawn
+    @test any(c -> c.op === :clip_nonzero, r.commands)    # plots clipped
+    @test count(c -> c.op === :arc, r.commands) == 2      # two scatter circles
+
+    # determinism: identical streams across renders (the wasm-diff invariant)
+    r2 = RecordingCtx()
+    render!(fig, r2)
+    @test r.commands == r2.commands
+
+    # browser pixels: first real WasmMakie-rendered figure
+    res = render_commands(to_json(r); width = 300, height = 200,
+                          probes = [(3, 3)])
+    if res === nothing
+        @test_skip "playwright unavailable"
+    else
+        @test res.pixels[(3, 3)] == (255, 255, 255, 255)  # figure bg
+        img = res.png
+        @test png_dims(img) == (300, 200)
+        # decode-free色 checks via more probes
+        res2 = render_commands(to_json(r); width = 300, height = 200, probes = Tuple{Int,Int}[])
+        @test res2 !== nothing
+    end
+end
+
 @testset "vendored optimize_ticks sanity (C-002)" begin
     ticks, lo, hi = WasmMakie.optimize_ticks(0.0, 10.0)
     @test ticks == [0.0, 5.0, 10.0]

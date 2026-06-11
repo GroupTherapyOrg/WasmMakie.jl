@@ -58,10 +58,11 @@ include("vendor/linear_ticks.jl")
 include("vendor/colormap_viridis.jl")
 include("vendor/colors.jl")
 include("core/axis.jl")
+include("core/render.jl")
 
 export CANVAS_OPS, import_specs, js_glue
 export AbstractCtx, WasmCtx, RecordingCtx, Command, to_json
 export Figure, Axis, GridPosition, cycle_color
-export lines!, scatter!, barplot!, heatmap!, image!
+export lines!, scatter!, barplot!, heatmap!, image!, render!
 
 end # module

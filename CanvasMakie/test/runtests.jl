@@ -4,6 +4,7 @@ using CanvasMakie
 using ColorTypes
 using FixedPointNumbers
 import WasmMakie
+import PNGFiles
 
 @testset "static-core theme parity vs live Makie (C-001)" begin
     th = Makie.MAKIE_DEFAULT_THEME
@@ -106,6 +107,46 @@ end
 end
 
 const HAVE_RENDERER = CanvasMakie.renderer_available()
+
+include(joinpath(dirname(dirname(@__DIR__)), "reftests", "scorer.jl"))
+using .RefScorer
+
+@testset "core_parity: WasmMakie core vs real Makie (C-009)" begin
+    xs = [0.0, 0.5, 1.0, 1.5, 2.0]
+    ys = [0.0, 0.8, 0.3, 0.9, 0.5]
+
+    # WasmMakie static core → commands → Chromium PNG
+    wfig = WasmMakie.Figure(size = (400, 300))
+    wax = WasmMakie.Axis(wfig[1, 1])
+    WasmMakie.lines!(wax, xs, ys)
+    WasmMakie.scatter!(wax, xs, ys; color = :red, markersize = 12)
+    rctx = WasmMakie.RecordingCtx()
+    WasmMakie.render!(wfig, rctx)
+    png_w = CanvasMakie.commands_to_png(rctx, 400, 300)
+    img_w = PNGFiles.load(IOBuffer(png_w))
+
+    # real Makie → CanvasMakie screen
+    CanvasMakie.activate!()
+    mfig = Figure(size = (400, 300))
+    maxis = Axis(mfig[1, 1])
+    lines!(maxis, xs, ys)
+    scatter!(maxis, xs, ys; color = :red, markersize = 12)
+    img_m = Makie.colorbuffer(mfig)
+
+    @test size(img_w) == size(img_m)
+    score = RefScorer.compare_images(img_w, img_m)
+    println("core_parity score (lines+scatter, 400x300): ", round(score, digits = 4))
+    # documented LOOSE tier until T-004 exact text extents align the inner
+    # rects; the metric is recorded in the plan on every change
+    @test score < 0.35
+
+    # structural agreement: both have red scatter ink and near-black spine ink
+    redish(px) = Float64(ColorTypes.red(px)) > 0.8 && Float64(ColorTypes.green(px)) < 0.3
+    darkish(px) = Float64(ColorTypes.red(px)) < 0.3 && Float64(ColorTypes.alpha(px)) > 0.9
+    @test count(redish, img_w) > 50 && count(redish, img_m) > 50
+    @test count(darkish, img_w) > 100 && count(darkish, img_m) > 100
+end
+
 
 @testset "Screen protocol (D-001)" begin
     scene = Scene(size = (120, 80), backgroundcolor = :red, camera = campixel!)
