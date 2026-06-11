@@ -550,6 +550,60 @@ end
     @test_throws ErrorException lines!(ax, [1, 2], [1, 2]; color = :no_such_color)
 end
 
+@testset "axis resolution: limits + locateticks + protrusions (C-008)" begin
+    # locateticks parity — oracle outputs from Makie.locateticks(lo, hi, 5)
+    L = WasmMakie.locateticks
+    @test L(0.9, 3.1, 5) == [1.0, 1.5, 2.0, 2.5, 3.0]
+    @test L(0.0, 10.0, 5) == [0.0, 2.0, 4.0, 6.0, 8.0, 10.0]
+    @test L(4.8, 9.2, 5) == [5.0, 6.0, 7.0, 8.0, 9.0]
+    @test L(-5.0, 5.0, 5) == [-4.0, -2.0, 0.0, 2.0, 4.0]
+    @test L(0.001, 0.0023, 5) == [0.0012, 0.0015, 0.0018, 0.0021]
+    @test L(-273.15, 0.0, 5) == [-240.0, -180.0, -120.0, -60.0, 0.0]
+    @test L(0.0, 1.0e6, 5) == [0.0, 200000.0, 400000.0, 600000.0, 800000.0, 1.0e6]
+    @test L(2.5, 7.5, 5) == [3.0, 4.0, 5.0, 6.0, 7.0]
+
+    # final_limits — oracle: Makie ax.finallimits
+    fig = Figure()
+    ax = Axis(fig[1, 1])
+    lines!(ax, [1.0, 2.0, 3.0], [5.0, 9.0, 7.0])
+    lims = WasmMakie.final_limits(ax)
+    @test all(abs.(lims .- (0.9, 3.1, 4.8, 9.2)) .< 1e-6)
+    # empty axis → (0, 10, 0, 10)
+    ax2 = Axis(Figure()[1, 1])
+    @test WasmMakie.final_limits(ax2) == (0.0, 10.0, 0.0, 10.0)
+    # degenerate y span → default (oracle behavior)
+    ax3 = Axis(Figure()[1, 1])
+    lines!(ax3, [1.0, 2.0], [5.0, 5.0])
+    @test WasmMakie.final_limits(ax3)[3:4] == (0.0, 10.0)
+    # user override wins per side
+    ax.ymin = 0.0
+    @test WasmMakie.final_limits(ax)[3] == 0.0
+    @test abs(WasmMakie.final_limits(ax)[4] - 9.2) < 1e-6
+    ax.ymin = NaN
+
+    # resolve_axis end-to-end
+    res = WasmMakie.resolve_axis(ax)
+    @test res.xticks == [1.0, 1.5, 2.0, 2.5, 3.0]
+    @test all(res.xmin .<= res.xticks .<= res.xmax)
+    @test res.xticklabels[1] == WasmMakie.TickLabel("1.0", "")
+    @test length(res.yticklabels) == length(res.yticks)
+
+    # protrusions: approximate parity vs Makie oracle (default axis:
+    # left 16.784, bottom 23.31) — exact extents arrive with T-004
+    res2 = WasmMakie.resolve_axis(ax2)
+    # sanity bands only — Makie composes these from real FreeType extents
+    # (oracle: bottom 23.31, left 16.784); exact parity is T-004-gated
+    @test 18.0 < res2.prot.b < 28.0
+    @test 10.0 < res2.prot.l < 30.0
+    @test res2.prot.t == 0.0 && res2.prot.r == 0.0
+    # labels/title add protrusion
+    ax4 = Axis(Figure()[1, 1]; title = "T", xlabel = "x", ylabel = "y")
+    res4 = WasmMakie.resolve_axis(ax4)
+    @test res4.prot.b > res2.prot.b
+    @test res4.prot.l > res2.prot.l
+    @test res4.prot.t > 0.0
+end
+
 @testset "vendored optimize_ticks sanity (C-002)" begin
     ticks, lo, hi = WasmMakie.optimize_ticks(0.0, 10.0)
     @test ticks == [0.0, 5.0, 10.0]
