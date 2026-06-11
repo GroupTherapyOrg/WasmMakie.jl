@@ -378,7 +378,9 @@ end
     script = "import PlotUtils\n" *
         join(["println(repr(PlotUtils.optimize_ticks$(c)))" for c in cases], "\n")
     proj = dirname(Base.active_project())
-    oracle = readlines(`julia +1.12 --project=$proj -e $script`)
+    # Base.julia_cmd() = the RUNNING julia — portable to CI (no juliaup there)
+    jlcmd = Base.julia_cmd()
+    oracle = readlines(`$jlcmd --project=$proj --startup-file=no -e $script`)
     @test length(oracle) == length(cases)
     for (c, expected) in zip(cases, oracle)
         ours = eval(Meta.parse("WasmMakie.optimize_ticks$(c)"))
