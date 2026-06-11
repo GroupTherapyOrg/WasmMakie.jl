@@ -170,7 +170,23 @@ function import_specs()
     ) for op in CANVAS_OPS]
 end
 
-# ── artifact 3: the JS glue ─────────────────────────────────────────────
+# ── artifact 3: replay specs ────────────────────────────────────────────
+"""
+    js_specs() -> String
+
+A JSON object mapping each op name to its wasm param kinds
+(`{"move_to":["F64","F64"], "arc":[...,"I64"], ...}`), generated from the ops
+table. `assets/replay.js` uses it to convert plain JSON numbers back into
+wasm-shaped arguments (BigInt for I64) before calling the glue.
+"""
+function js_specs()
+    entries = join(
+        ["\"$(op.name)\":[$(join(["\"$(_wasm_type(T))\"" for (_, T) in op.args], ","))]"
+         for op in CANVAS_OPS], ",")
+    return "{" * entries * "}"
+end
+
+# ── artifact 4: the JS glue ─────────────────────────────────────────────
 """
     js_glue() -> String
 

@@ -132,6 +132,55 @@ end
     @test strip(parsed) == "2"
 end
 
+@testset "replay round-trip (F-004)" begin
+    # js_specs: generated, complete, JSON-parseable
+    specs = WasmMakie.js_specs()
+    @test occursin("\"arc\":[\"F64\",\"F64\",\"F64\",\"F64\",\"F64\",\"I64\"]", specs)
+    @test occursin("\"begin_path\":[]", specs)
+    nops = read(`node -e "console.log(Object.keys(JSON.parse(process.argv[1])).length)" $specs`, String)
+    @test strip(nops) == "58"
+
+    # Record a program exercising every conversion class, then replay it
+    # through the REAL glue in node and assert the resulting canvas calls.
+    r = RecordingCtx()
+    WasmMakie.begin_path(r)
+    WasmMakie.move_to(r, 1.0, 2.0)
+    WasmMakie.arc(r, 0.0, 0.0, 5.0, 0.0, 3.14, Int64(1))
+    WasmMakie.set_line_dash4(r, 6.0, 4.0, 0.0, 0.0, Int64(2))
+    WasmMakie.set_line_cap(r, Int64(1))
+    WasmMakie.set_font(r, Int64(0), 12.0, Int64(400), Int64(0))
+    WasmMakie.text_buf_clear(r)
+    WasmMakie.text_buf_push(r, Int64(72))   # 'H'
+    WasmMakie.text_buf_push(r, Int64(105))  # 'i'
+    WasmMakie.fill_text_buf(r, 10.0, 20.0)
+    WasmMakie.img_buf_new(r, Int64(2), Int64(1))
+    WasmMakie.img_buf_push_rgba(r, Int64(10), Int64(20), Int64(30), Int64(255))
+    WasmMakie.img_buf_push_rgba(r, Int64(40), Int64(50), Int64(60), Int64(255))
+    WasmMakie.put_image_buf(r, 0.0, 0.0)
+    gid = WasmMakie.gradient_linear_new(r, 0.0, 0.0, 100.0, 0.0)
+    @test gid === Int64(0)
+    @test WasmMakie.gradient_linear_new(RecordingCtx(), 0.0, 0.0, 1.0, 1.0) === Int64(0)
+    WasmMakie.gradient_add_stop(r, gid, 0.0, 255.0, 0.0, 0.0, 1.0)
+    WasmMakie.set_fill_gradient(r, gid)
+    WasmMakie.stroke(r)
+    @test length(r.commands) == 18
+    # sequential handle ids mirror the glue
+    r9 = RecordingCtx()
+    @test WasmMakie.gradient_linear_new(r9, 0.0, 0.0, 1.0, 0.0) === Int64(0)
+    @test WasmMakie.gradient_linear_new(r9, 0.0, 0.0, 2.0, 0.0) === Int64(1)
+    WasmMakie.gradient_clear_all(r9)
+    @test WasmMakie.gradient_linear_new(r9, 0.0, 0.0, 3.0, 0.0) === Int64(0)
+
+    dir = mktempdir()
+    glue_path = joinpath(dir, "glue.js");     write(glue_path, js_glue())
+    specs_path = joinpath(dir, "specs.json"); write(specs_path, specs)
+    cmds_path = joinpath(dir, "commands.json"); write(cmds_path, to_json(r))
+    replay_path = joinpath(dirname(@__DIR__), "assets", "replay.js")
+    checker = joinpath(@__DIR__, "replay_check.js")
+    out = read(`node $checker $glue_path $replay_path $specs_path $cmds_path`, String)
+    @test occursin("REPLAY OK: 18 commands round-tripped", out)
+end
+
 @testset "WasmMakie scaffold" begin
     @test WasmMakie isa Module
     @test pkgversion(WasmMakie) == v"0.0.1"

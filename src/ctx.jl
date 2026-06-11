@@ -37,6 +37,7 @@ mutable struct RecordingCtx <: AbstractCtx
     # tracked state for deterministic value-op stand-ins
     buf_len::Int64
     font_size::Float64
+    next_gradient_id::Int64  # mirrors the glue's sequential handle ids
     # fixed stand-in metrics (see T-004 for the path to real-metric parity)
     char_width_ratio::Float64
     ascent_ratio::Float64
@@ -47,11 +48,12 @@ mutable struct RecordingCtx <: AbstractCtx
 end
 
 RecordingCtx(; canvas_w = 640.0, canvas_h = 480.0) =
-    RecordingCtx(Command[], 0, 10.0, 0.55, 0.8, 0.2, canvas_w, canvas_h, 1.0)
+    RecordingCtx(Command[], 0, 10.0, 0, 0.55, 0.8, 0.2, canvas_w, canvas_h, 1.0)
 
 # Ops with hand-written RecordingCtx methods (stateful or value-returning).
 const _SPECIAL_RECORDING_OPS = (
     :set_font, :text_buf_clear, :text_buf_push,
+    :gradient_linear_new, :gradient_clear_all,
     :measure_text_buf_width, :measure_text_buf_ascent, :measure_text_buf_descent,
     :width, :height, :device_pixel_ratio,
 )
@@ -92,6 +94,19 @@ end
 function text_buf_push(ctx::RecordingCtx, cp::Int64)
     push!(ctx.commands, Command(:text_buf_push, Float64[], Int64[cp]))
     ctx.buf_len += 1
+    return Int64(0)
+end
+
+function gradient_linear_new(ctx::RecordingCtx, x0::Float64, y0::Float64, x1::Float64, y1::Float64)
+    push!(ctx.commands, Command(:gradient_linear_new, Float64[x0, y0, x1, y1], Int64[]))
+    id = ctx.next_gradient_id
+    ctx.next_gradient_id += 1
+    return id
+end
+
+function gradient_clear_all(ctx::RecordingCtx)
+    push!(ctx.commands, Command(:gradient_clear_all, Float64[], Int64[]))
+    ctx.next_gradient_id = 0
     return Int64(0)
 end
 
