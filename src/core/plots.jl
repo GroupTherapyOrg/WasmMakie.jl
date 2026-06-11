@@ -16,6 +16,7 @@ const PLOT_SEGMENTS = Int64(9)
 const PLOT_FILLEDCURVE = Int64(10)
 const PLOT_BAND = Int64(11)
 const PLOT_POLY = Int64(12)
+const PLOT_MESH = Int64(13)
 
 # linestyles in Makie's encoding (vendor/ticks of lines draw layer consume these)
 const LINESTYLE_SOLID = Int64(0)
@@ -127,6 +128,19 @@ mutable struct PolyPlot
     color::NTuple{4,Float64}
     strokecolor::NTuple{4,Float64}
     strokewidth::Float64
+    label::String
+end
+
+# Gouraud mesh (mesh!, surface!) — per-vertex colors, software-rasterized
+mutable struct MeshPlot
+    vx::Vector{Float64}      # data coords
+    vy::Vector{Float64}
+    vz::Vector{Float64}      # depth (smaller = nearer; zeros for 2D)
+    vr::Vector{Float64}      # per-vertex RGBA
+    vg::Vector{Float64}
+    vb::Vector{Float64}
+    va::Vector{Float64}
+    faces::Vector{Int64}     # flat 1-based vertex-index triples
     label::String
 end
 

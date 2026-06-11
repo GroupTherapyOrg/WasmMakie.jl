@@ -38,37 +38,48 @@ struct ResolvedAxis
     prot::Protrusions
 end
 
+function _dl_primary(ax::Axis, kind::Int64, idx::Int64)
+    if kind == PLOT_LINES
+        return data_limits(ax.lines[idx])
+    elseif kind == PLOT_SCATTER
+        return data_limits(ax.scatters[idx])
+    elseif kind == PLOT_BARPLOT
+        return data_limits(ax.bars[idx])
+    elseif kind == PLOT_HEATMAP
+        return data_limits(ax.heatmaps[idx])
+    else
+        return data_limits(ax.images[idx])
+    end
+end
+
+function _dl_extended(ax::Axis, kind::Int64, idx::Int64)
+    if kind == PLOT_HVLINES
+        return data_limits(ax.hvlines[idx])
+    elseif kind == PLOT_HVSPAN
+        return data_limits(ax.hvspans[idx])
+    elseif kind == PLOT_ABLINES
+        return data_limits(ax.ablines[idx])
+    elseif kind == PLOT_SEGMENTS
+        return data_limits(ax.segments[idx])
+    elseif kind == PLOT_FILLEDCURVE
+        return data_limits(ax.filledcurves[idx])
+    elseif kind == PLOT_BAND
+        return data_limits(ax.bands[idx])
+    elseif kind == PLOT_POLY
+        return data_limits(ax.polys[idx])
+    else
+        return data_limits(ax.meshes[idx])
+    end
+end
+
 function _plots_limits(ax::Axis)
     xlo = Inf; xhi = -Inf; ylo = Inf; yhi = -Inf
-    # WTGAP (chain-shape): one giant ternary over 12 differently-typed
-    # data_limits calls traps compiled — if/elseif statements instead
+    # WTGAP (chain-shape): too many differently-typed data_limits calls in
+    # ONE function body traps compiled (~12-branch budget) — dispatch split
+    # into two sub-budget helpers (_dl_primary / _dl_extended below)
     for (kind, idx) in ax.plot_order
-        l = (0.0, 0.0, 0.0, 0.0)
-        if kind == PLOT_LINES
-            l = data_limits(ax.lines[idx])
-        elseif kind == PLOT_SCATTER
-            l = data_limits(ax.scatters[idx])
-        elseif kind == PLOT_BARPLOT
-            l = data_limits(ax.bars[idx])
-        elseif kind == PLOT_HEATMAP
-            l = data_limits(ax.heatmaps[idx])
-        elseif kind == PLOT_IMAGE
-            l = data_limits(ax.images[idx])
-        elseif kind == PLOT_HVLINES
-            l = data_limits(ax.hvlines[idx])
-        elseif kind == PLOT_HVSPAN
-            l = data_limits(ax.hvspans[idx])
-        elseif kind == PLOT_ABLINES
-            l = data_limits(ax.ablines[idx])
-        elseif kind == PLOT_SEGMENTS
-            l = data_limits(ax.segments[idx])
-        elseif kind == PLOT_FILLEDCURVE
-            l = data_limits(ax.filledcurves[idx])
-        elseif kind == PLOT_BAND
-            l = data_limits(ax.bands[idx])
-        else
-            l = data_limits(ax.polys[idx])
-        end
+        l = kind <= PLOT_IMAGE ? _dl_primary(ax, kind, idx) :
+            _dl_extended(ax, kind, idx)
         l[1] < xlo && (xlo = l[1])
         l[2] > xhi && (xhi = l[2])
         l[3] < ylo && (ylo = l[3])

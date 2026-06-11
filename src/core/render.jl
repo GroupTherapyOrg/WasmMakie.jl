@@ -439,6 +439,19 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
                              p.color[1], p.color[2], p.color[3], p.color[4],
                              p.strokecolor[1], p.strokecolor[2], p.strokecolor[3], p.strokecolor[4],
                              p.strokewidth, no_dash(), THEME_LINECAP, THEME_JOINSTYLE, 4.0)
+        elseif kind == PLOT_MESH
+            p = ax.meshes[idx]
+            n = length(p.vx)
+            mw = Int64(round(t.rw))
+            mh = Int64(round(t.rh))
+            fx = Vector{Float64}(undef, n)
+            fy = Vector{Float64}(undef, n)
+            for i in 1:n
+                fx[i] = px_x(t, p.vx[i]) - t.rx
+                fy[i] = px_y(t, p.vy[i]) - t.ry
+            end
+            draw_mesh!(ctx, fx, fy, p.vz, p.vr, p.vg, p.vb, p.va, p.faces,
+                       t.rx, t.ry, mw, mh)
         elseif kind == PLOT_HEATMAP
             p = ax.heatmaps[idx]
             nx = p.nx

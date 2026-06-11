@@ -996,6 +996,126 @@ function contourf!(ax::Axis, xs::AbstractVector{<:Real}, ys::AbstractVector{<:Re
     return heatmap!(ax, fxs, fys, fine, fx, fy; colorrange = (zmin, zmax))
 end
 
+"""
+    mesh!(ax, vx, vy, faces; color = <single or per-vertex vector>)
+
+2D Gouraud mesh: `faces` is a flat vector of 1-based vertex-index triples.
+"""
+function mesh!(ax::Axis, vx::AbstractVector{<:Real}, vy::AbstractVector{<:Real},
+               faces::AbstractVector{<:Integer};
+               color = nothing, label::String = "")
+    n = length(vx)
+    vr = Vector{Float64}(undef, n)
+    vg = Vector{Float64}(undef, n)
+    vb = Vector{Float64}(undef, n)
+    va = Vector{Float64}(undef, n)
+    if color isa AbstractVector
+        for i in 1:n
+            c = _color(color[i])
+            vr[i] = c[1]; vg[i] = c[2]; vb[i] = c[3]; va[i] = c[4]
+        end
+    else
+        c = color === nothing ? _next_cycle_color(ax) : _color(color)
+        for i in 1:n
+            vr[i] = c[1]; vg[i] = c[2]; vb[i] = c[3]; va[i] = c[4]
+        end
+    end
+    fc = Vector{Int64}(undef, length(faces))
+    for i in eachindex(faces)
+        fc[i] = Int64(faces[i])
+    end
+    push!(ax.meshes, MeshPlot(_f64vec(vx), _f64vec(vy), zeros(Float64, n),
+                              vr, vg, vb, va, fc, label))
+    _push_plot!(ax, PLOT_MESH, Int64(length(ax.meshes)))
+    return ax.meshes[end]
+end
+
+"""
+    surface!(ax, xs, ys, z; azimuth = 1.275π, elevation = π/8)
+
+Surface via a basic fixed orthographic camera projected into the 2D axis
+(WASM-DIVERGENCE: no Axis3 — full 3D scenes are out of plan scope; the
+camera normalizes data to the unit cube like Axis3's stretched aspect).
+Vertex colors are viridis over z. Matrix host API + flat wasm overload.
+"""
+function surface!(ax::Axis, xs::AbstractVector{<:Real}, ys::AbstractVector{<:Real},
+                  z::AbstractMatrix{<:Real}; azimuth::Real = 1.275 * pi,
+                  elevation::Real = pi / 8)
+    nx, ny = size(z)
+    flat = Vector{Float64}(undef, nx * ny)
+    for j in 1:ny, i in 1:nx
+        flat[i + (j - 1) * nx] = Float64(z[i, j])
+    end
+    return surface!(ax, xs, ys, flat, Int64(nx), Int64(ny); azimuth, elevation)
+end
+
+function surface!(ax::Axis, xs::AbstractVector{<:Real}, ys::AbstractVector{<:Real},
+                  z::AbstractVector{<:Real}, nx::Int64, ny::Int64;
+                  azimuth::Real = 1.275 * pi, elevation::Real = pi / 8)
+    xv = _f64vec(xs)
+    yv = _f64vec(ys)
+    zv = _f64vec(z)
+    zmin = Inf
+    zmax = -Inf
+    for v in zv
+        v < zmin && (zmin = v)
+        v > zmax && (zmax = v)
+    end
+    zspan = zmax == zmin ? 1.0 : zmax - zmin
+    xspan = xv[end] == xv[1] ? 1.0 : xv[end] - xv[1]
+    yspan = yv[end] == yv[1] ? 1.0 : yv[end] - yv[1]
+    ca = cos(Float64(azimuth))
+    sa = sin(Float64(azimuth))
+    ce = cos(Float64(elevation))
+    se = sin(Float64(elevation))
+    n = nx * ny
+    px = Vector{Float64}(undef, n)
+    py = Vector{Float64}(undef, n)
+    pd = Vector{Float64}(undef, n)
+    vr = Vector{Float64}(undef, n)
+    vg = Vector{Float64}(undef, n)
+    vb = Vector{Float64}(undef, n)
+    va = Vector{Float64}(undef, n)
+    for j in 1:ny
+        for i in 1:nx
+            k = i + (j - 1) * nx
+            u = (xv[i] - xv[1]) / xspan - 0.5
+            v = (yv[j] - yv[1]) / yspan - 0.5
+            zn = (zv[k] - zmin) / zspan - 0.5
+            rx = ca * u - sa * v
+            ry = sa * u + ca * v
+            px[k] = rx
+            py[k] = se * ry + ce * zn
+            pd[k] = ce * ry - se * zn
+            c = interpolated_getindex(VIRIDIS, zv[k], zmin, zmax)
+            vr[k] = c[1]; vg[k] = c[2]; vb[k] = c[3]; va[k] = c[4]
+        end
+    end
+    faces = Int64[]
+    for j in 1:(ny - 1)
+        for i in 1:(nx - 1)
+            a = i + (j - 1) * nx
+            b = a + 1
+            cidx = a + nx
+            d = b + nx
+            push!(faces, a); push!(faces, b); push!(faces, d)
+            push!(faces, a); push!(faces, d); push!(faces, cidx)
+        end
+    end
+    push!(ax.meshes, MeshPlot(px, py, pd, vr, vg, vb, va, faces, ""))
+    _push_plot!(ax, PLOT_MESH, Int64(length(ax.meshes)))
+    return ax.meshes[end]
+end
+
+"""
+    meshscatter!(ax, x, y; markersize = 9, color = <cycle>)
+
+2D projection form: circular markers (the sphere-mesh marker of the full 3D
+recipe collapses to a disc under the fixed camera — documented divergence).
+"""
+meshscatter!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real}; kwargs...) =
+    scatter!(ax, x, y; kwargs...)
+
 # ── data limits (consumed by C-008 autolimits) ──────────────────────────
 function _extrema_finite(v::Vector{Float64})
     lo = Inf
@@ -1045,6 +1165,11 @@ function data_limits(p::BandPlot)
     llo, lhi = _extrema_finite(p.ylow)
     hlo, hhi = _extrema_finite(p.yhigh)
     return (xlo, xhi, min(llo, hlo), max(lhi, hhi))
+end
+function data_limits(p::MeshPlot)
+    xlo, xhi = _extrema_finite(p.vx)
+    ylo, yhi = _extrema_finite(p.vy)
+    return (xlo, xhi, ylo, yhi)
 end
 function data_limits(p::PolyPlot)
     xlo, xhi = _extrema_finite(p.xs)

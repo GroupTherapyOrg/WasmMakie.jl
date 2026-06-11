@@ -47,6 +47,7 @@ include("draw/lines.jl")
 include("draw/scatter.jl")
 include("draw/image.jl")
 include("draw/poly.jl")
+include("draw/mesh.jl")
 include("core/theme.jl")
 include("core/plots.jl")
 include("core/layout.jl")    # SizeSpec/Protrusions used by figure.jl (L-004)
@@ -80,5 +81,6 @@ export stairs!, hist!, errorbars!, rangebars!, stem!, density!
 export band!, pie!, boxplot!, violin!
 export crossbar!, series!, waterfall!
 export contour!, contourf!
+export mesh!, surface!, meshscatter!
 
 end # module

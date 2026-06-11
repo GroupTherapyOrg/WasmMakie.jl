@@ -918,6 +918,73 @@ end
     end
 end
 
+@testset "mesh rasterizer + surface (R-005)" begin
+    # analytic oracle: right triangle (1,1)-(9,1)-(1,9) into a 10×10 buffer
+    w = Int64(10); h = Int64(10)
+    pix = fill((0.0, 0.0, 0.0, 0.0), 100)
+    depth = fill(Inf, 100)
+    WasmMakie.rasterize_mesh!(pix, depth, w, h,
+        [1.0, 9.0, 1.0], [1.0, 1.0, 9.0], [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 1.0, 1.0],
+        Int64[1, 2, 3])
+    @test pix[2 + 1 * 10][4] == 1.0          # (2,2) inside
+    @test pix[9 + 8 * 10][4] == 0.0          # (9,9) outside the hypotenuse
+    # Gouraud: vertex corners carry their colors
+    @test pix[1 + 0 * 10][1] ≈ 1.0           # (1,1) red vertex
+    @test pix[9 + 0 * 10][2] ≈ 1.0           # (9,1) green vertex
+    # barycentric interpolation sums to 1 → rgb sums to 1 inside
+    c = pix[3 + 2 * 10]
+    @test c[1] + c[2] + c[3] ≈ 1.0
+
+    # depth test: nearer (smaller z) triangle wins
+    pix2 = fill((0.0, 0.0, 0.0, 0.0), 100)
+    depth2 = fill(Inf, 100)
+    WasmMakie.rasterize_mesh!(pix2, depth2, w, h,
+        [1.0, 9.0, 1.0, 1.0, 9.0, 1.0], [1.0, 1.0, 9.0, 1.0, 1.0, 9.0],
+        [1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        [1.0, 1.0, 1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        Int64[1, 2, 3, 4, 5, 6])
+    @test pix2[2 + 1 * 10][2] == 1.0         # green (z=0) in front of red (z=1)
+
+    # winding-agnostic: CW face still fills
+    pix3 = fill((0.0, 0.0, 0.0, 0.0), 100)
+    depth3 = fill(Inf, 100)
+    WasmMakie.rasterize_mesh!(pix3, depth3, w, h,
+        [1.0, 1.0, 9.0], [1.0, 9.0, 1.0], [0.0, 0.0, 0.0],
+        [1.0, 1.0, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0],
+        Int64[1, 2, 3])
+    @test pix3[2 + 1 * 10][1] == 1.0
+
+    # recipes
+    ax = Axis(Figure()[1, 1])
+    m = mesh!(ax, [0.0, 1.0, 0.5], [0.0, 0.0, 1.0], [1, 2, 3]; color = :red)
+    @test length(m.faces) == 3
+    @test WasmMakie.data_limits(m) == (0.0, 1.0, 0.0, 1.0)
+    ax2 = Axis(Figure()[1, 1])
+    xs = collect(0.0:0.5:2.0)
+    sp = surface!(ax2, xs, xs, [sin(x) * cos(y) for x in xs, y in xs])
+    @test length(sp.vx) == 25
+    @test length(sp.faces) == 2 * 16 * 3     # two triangles per cell
+    @test length(ax2.meshes) == 1
+    @test meshscatter!(Axis(Figure()[1, 1]), [1.0], [2.0]) isa WasmMakie.ScatterPlot
+
+    # browser: the Gouraud triangle draws real pixels
+    fig = Figure(size = (200.0, 150.0))
+    axb = Axis(fig[1, 1])
+    mesh!(axb, [0.0, 1.0, 0.5], [0.0, 0.0, 1.0], Int64[1, 2, 3];
+          color = [:red, :green, :blue])
+    r = RecordingCtx(); render!(fig, r)
+    res = render_commands(to_json(r); width = 200, height = 150,
+                          probes = [(100, 100)])
+    if res === nothing
+        @test_skip "playwright unavailable"
+    else
+        px = res.pixels[(100, 100)]
+        @test px[1] + px[2] + px[3] < 720   # inked (not white) near center
+    end
+end
+
 @testset "static-core render pipeline (C-009)" begin
     fig = Figure(size = (300, 200))
     ax = Axis(fig[1, 1]; title = "T", xlabel = "x", ylabel = "y")
@@ -1142,6 +1209,13 @@ function w005_contour()
     contourf!(Axis(fig[1, 2]), xs, xs, z, Int64(9), Int64(9); upsample = 2)
     render!(fig, WasmCtx()); return Int64(0)
 end
+function w005_mesh()
+    fig = Figure(size = (200.0, 150.0))
+    ax = Axis(fig[1, 1])
+    mesh!(ax, [0.0, 1.0, 0.5], [0.0, 0.0, 1.0], Int64[1, 2, 3];
+          color = [:red, :green, :blue])
+    render!(fig, WasmCtx()); return Int64(0)
+end
 function w005_grid()
     fig = Figure(size = (400.0, 300.0))
     lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
@@ -1228,6 +1302,11 @@ end
                 end
                 contour!(Axis(fig[1, 1]), xs, xs, z, Int64(9), Int64(9))
                 contourf!(Axis(fig[1, 2]), xs, xs, z, Int64(9), Int64(9); upsample = 2)
+            end),
+            ("mesh", w005_mesh, (200.0, 150.0), fig -> begin
+                ax = Axis(fig[1, 1])
+                mesh!(ax, [0.0, 1.0, 0.5], [0.0, 0.0, 1.0], Int64[1, 2, 3];
+                      color = [:red, :green, :blue])
             end),
             ("grid", w005_grid, (400.0, 300.0), fig -> begin
                 lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
