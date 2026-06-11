@@ -815,6 +815,36 @@ end
     @test all(d.y .>= 0.0)
 end
 
+@testset "wave-2 composites (R-003 partial)" begin
+    ax = Axis(Figure()[1, 1])
+    b = band!(ax, [0.0, 1.0], [0.0, 0.5], [1.0, 1.5])
+    @test b.color[4] == 0.8
+    @test WasmMakie.data_limits(b) == (0.0, 1.0, 0.0, 1.5)
+
+    axp = Axis(Figure()[1, 1])
+    pie!(axp, [1.0, 1.0, 2.0])
+    @test length(axp.polys) == 3
+    # half the circle for the weight-2 slice: center + 181 arc points
+    @test length(axp.polys[3].xs) == 182
+    @test WasmMakie.data_limits(axp.polys[1])[1] >= -1.0
+
+    axb = Axis(Figure()[1, 1])
+    boxplot!(axb, [1.0, 1, 1, 1, 1, 1], [1.0, 2, 3, 4, 5, 19])
+    @test length(axb.polys) == 1          # one box
+    @test length(axb.scatters) == 1       # 19 is an outlier (1.5 IQR fence)
+    @test axb.scatters[1].y == [19.0]
+    @test length(axb.segments) == 1       # whiskers + median
+    # box spans q25..q75 of [1..5,19]
+    @test minimum(axb.polys[1].ys) == WasmMakie._quantile7([1.0, 2, 3, 4, 5, 19], 0.25)
+
+    axv = Axis(Figure()[1, 1])
+    violin!(axv, [1.0, 1, 1, 1, 1], [1.0, 2, 3, 4, 5])
+    @test length(axv.polys) == 1
+    @test length(axv.polys[1].xs) == 400  # mirrored 200-point KDE
+    # body is symmetric about the group center
+    @test abs((maximum(axv.polys[1].xs) - 1.0) - (1.0 - minimum(axv.polys[1].xs))) < 1e-9
+end
+
 @testset "static-core render pipeline (C-009)" begin
     fig = Figure(size = (300, 200))
     ax = Axis(fig[1, 1]; title = "T", xlabel = "x", ylabel = "y")
@@ -1007,6 +1037,15 @@ function w005_stats()
     density!(ax, [0.1, 0.2, 0.25, 0.3, 0.5, 0.55, 0.6, 0.9])
     render!(fig, WasmCtx()); return Int64(0)
 end
+function w005_composites()
+    fig = Figure(size = (300.0, 200.0))
+    ax = Axis(fig[1, 1])
+    band!(ax, [0.0, 1.0, 2.0], [0.1, 0.3, 0.2], [0.5, 0.8, 0.6])
+    boxplot!(ax, [3.0, 3.0, 3.0, 3.0, 3.0], [0.2, 0.4, 0.5, 0.6, 0.9])
+    violin!(ax, [4.0, 4.0, 4.0, 4.0, 4.0], [0.3, 0.4, 0.5, 0.6, 0.7])
+    pie!(Axis(fig[1, 2]), [3.0, 2.0, 1.0])
+    render!(fig, WasmCtx()); return Int64(0)
+end
 function w005_grid()
     fig = Figure(size = (400.0, 300.0))
     lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])
@@ -1067,6 +1106,13 @@ end
                 errorbars!(ax, [0.5, 1.5], [0.5, 0.7], [0.1, 0.2]; color = :red)
                 stem!(ax, [2.2, 2.6], [0.4, 0.9])
                 density!(ax, [0.1, 0.2, 0.25, 0.3, 0.5, 0.55, 0.6, 0.9])
+            end),
+            ("composites", w005_composites, (300.0, 200.0), fig -> begin
+                ax = Axis(fig[1, 1])
+                band!(ax, [0.0, 1.0, 2.0], [0.1, 0.3, 0.2], [0.5, 0.8, 0.6])
+                boxplot!(ax, [3.0, 3.0, 3.0, 3.0, 3.0], [0.2, 0.4, 0.5, 0.6, 0.9])
+                violin!(ax, [4.0, 4.0, 4.0, 4.0, 4.0], [0.3, 0.4, 0.5, 0.6, 0.7])
+                pie!(Axis(fig[1, 2]), [3.0, 2.0, 1.0])
             end),
             ("grid", w005_grid, (400.0, 300.0), fig -> begin
                 lines!(Axis(fig[1, 1]), [0.0, 1.0, 2.0], [0.1, 0.7, 0.4])

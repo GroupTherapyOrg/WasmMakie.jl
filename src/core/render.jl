@@ -404,6 +404,39 @@ function draw_axis!(ctx, ax::Axis, res::ResolvedAxis, irect::Rect2)
                              p.color[1], p.color[2], p.color[3], p.color[4],
                              p.strokecolor[1], p.strokecolor[2], p.strokecolor[3], p.strokecolor[4],
                              p.strokewidth, no_dash(), THEME_LINECAP, THEME_JOINSTYLE, 4.0)
+        elseif kind == PLOT_BAND
+            p = ax.bands[idx]
+            n = length(p.x)
+            ring = Vector{NTuple{2,Float64}}(undef, 2 * n)
+            for i in 1:n
+                ring[i] = (px_x(t, p.x[i]), px_y(t, p.yhigh[i]))
+            end
+            for i in 1:n
+                ring[n + i] = (px_x(t, p.x[n - i + 1]), px_y(t, p.ylow[n - i + 1]))
+            end
+            rings = Vector{Vector{NTuple{2,Float64}}}(undef, 1)
+            rings[1] = ring
+            draw_poly_rings!(ctx, rings,
+                             p.color[1], p.color[2], p.color[3], p.color[4],
+                             0.0, 0.0, 0.0, 1.0, 0.0, no_dash(),
+                             THEME_LINECAP, THEME_JOINSTYLE, 4.0)
+        elseif kind == PLOT_POLY
+            p = ax.polys[idx]
+            nrings = length(p.ring_starts)
+            rings = Vector{Vector{NTuple{2,Float64}}}(undef, nrings)
+            for ri in 1:nrings
+                lo = p.ring_starts[ri]
+                hi = ri < nrings ? p.ring_starts[ri + 1] - 1 : length(p.xs)
+                ring = Vector{NTuple{2,Float64}}(undef, hi - lo + 1)
+                for i in lo:hi
+                    ring[i - lo + 1] = (px_x(t, p.xs[i]), px_y(t, p.ys[i]))
+                end
+                rings[ri] = ring
+            end
+            draw_poly_rings!(ctx, rings,
+                             p.color[1], p.color[2], p.color[3], p.color[4],
+                             p.strokecolor[1], p.strokecolor[2], p.strokecolor[3], p.strokecolor[4],
+                             p.strokewidth, no_dash(), THEME_LINECAP, THEME_JOINSTYLE, 4.0)
         elseif kind == PLOT_HEATMAP
             p = ax.heatmaps[idx]
             nx = p.nx

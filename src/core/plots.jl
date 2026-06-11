@@ -14,6 +14,8 @@ const PLOT_HVSPAN = Int64(7)
 const PLOT_ABLINES = Int64(8)
 const PLOT_SEGMENTS = Int64(9)
 const PLOT_FILLEDCURVE = Int64(10)
+const PLOT_BAND = Int64(11)
+const PLOT_POLY = Int64(12)
 
 # linestyles in Makie's encoding (vendor/ticks of lines draw layer consume these)
 const LINESTYLE_SOLID = Int64(0)
@@ -99,6 +101,27 @@ mutable struct FilledCurve
     x::Vector{Float64}
     y::Vector{Float64}
     baseline::Float64
+    color::NTuple{4,Float64}
+    strokecolor::NTuple{4,Float64}
+    strokewidth::Float64
+    label::String
+end
+
+# band between two curves (band!, violin/density internals) — Poly attrs
+mutable struct BandPlot
+    x::Vector{Float64}
+    ylow::Vector{Float64}
+    yhigh::Vector{Float64}
+    color::NTuple{4,Float64}
+    label::String
+end
+
+# generic filled polygon(s) in data space (pie sectors, violin bodies,
+# boxplot boxes; future poly!) — flat ring-list representation
+mutable struct PolyPlot
+    ring_starts::Vector{Int64}   # 1-based start index per ring
+    xs::Vector{Float64}          # all ring vertices, concatenated
+    ys::Vector{Float64}
     color::NTuple{4,Float64}
     strokecolor::NTuple{4,Float64}
     strokewidth::Float64

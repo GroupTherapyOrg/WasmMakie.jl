@@ -486,6 +486,237 @@ function _quantile7(vals::Vector{Float64}, p::Float64)
     return sorted[i] + (h - fl) * (sorted[i + 1] - sorted[i])
 end
 
+"""
+    band!(ax, x, ylow, yhigh; color = <cycle α0.8>)
+
+Filled band between two curves (Makie band — drawn as a polygon here; the
+mesh-based upstream rendering arrives with R-005).
+"""
+function band!(ax::Axis, x::AbstractVector{<:Real}, ylow::AbstractVector{<:Real},
+               yhigh::AbstractVector{<:Real}; color = nothing, label::String = "")
+    c = if color === nothing
+        cc = _next_cycle_color(ax)
+        (cc[1], cc[2], cc[3], 0.8)   # patchcolor cycle
+    else
+        _color(color)
+    end
+    push!(ax.bands, BandPlot(_f64vec(x), _f64vec(ylow), _f64vec(yhigh), c, label))
+    _push_plot!(ax, PLOT_BAND, Int64(length(ax.bands)))
+    return ax.bands[end]
+end
+
+"Push one polygon ring (data coords) as a PolyPlot."
+function _push_poly!(ax::Axis, xs::Vector{Float64}, ys::Vector{Float64},
+                     color::NTuple{4,Float64}, strokecolor::NTuple{4,Float64},
+                     strokewidth::Float64, label::String)
+    push!(ax.polys, PolyPlot(Int64[1], xs, ys, color, strokecolor, strokewidth, label))
+    _push_plot!(ax, PLOT_POLY, Int64(length(ax.polys)))
+    return ax.polys[end]
+end
+
+"""
+    pie!(ax, values; colors = <Wong cycle>, radius = 1, strokecolor = :black,
+         strokewidth = 1, vertex_per_deg = 1)
+
+Pie sectors as polygons at the data-space origin (Makie pie.jl semantics:
+sectors approximated at `vertex_per_deg` resolution, radius 1 default).
+"""
+function pie!(ax::Axis, values::AbstractVector{<:Real};
+              colors = nothing, radius::Real = 1.0, strokecolor = :black,
+              strokewidth::Real = 1.0, vertex_per_deg::Real = 1.0)
+    vals = _f64vec(values)
+    total = 0.0
+    for v in vals
+        total += v
+    end
+    r = Float64(radius)
+    sc = _color(strokecolor)
+    a0 = 0.0
+    for (i, v) in enumerate(vals)
+        frac = total == 0.0 ? 0.0 : v / total
+        a1 = a0 + frac * 2.0 * pi
+        nseg = max(Int64(2), Int64(ceil((a1 - a0) * 180.0 / pi * Float64(vertex_per_deg))))
+        xs = Float64[0.0]
+        ys = Float64[0.0]
+        for k in 0:nseg
+            ang = a0 + (a1 - a0) * Float64(k) / Float64(nseg)
+            push!(xs, r * cos(ang))
+            push!(ys, r * sin(ang))
+        end
+        c = colors === nothing ? cycle_color(i) : _color(colors[i])
+        _push_poly!(ax, xs, ys, c, sc, Float64(strokewidth), "")
+        a0 = a1
+    end
+    return ax.polys[end]
+end
+
+"""
+    boxplot!(ax, x, y; width = automatic·0.8, range = 1.5, show_outliers = true)
+
+Per-group box (q25–q75), median line, 1.5·IQR whiskers clamped to data,
+outlier markers (Makie stats/boxplot.jl semantics).
+"""
+function boxplot!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+                  color = nothing, range::Real = 1.5, show_outliers::Bool = true,
+                  label::String = "")
+    xs = _f64vec(x)
+    ys = _f64vec(y)
+    c = if color === nothing
+        cc = _next_cycle_color(ax)
+        (cc[1], cc[2], cc[3], 0.8)
+    else
+        _color(color)
+    end
+    groups = Float64[]
+    for v in xs
+        found = false
+        for g in groups
+            v == g && (found = true; break)
+        end
+        found || push!(groups, v)
+    end
+    sort!(groups)
+    step = 1.0
+    if length(groups) > 1
+        step = Inf
+        for i in 2:length(groups)
+            d = groups[i] - groups[i - 1]
+            d > 0.0 && d < step && (step = d)
+        end
+    end
+    boxw = 0.8 * step
+    whisk_x = Float64[]
+    whisk_y = Float64[]
+    out_x = Float64[]
+    out_y = Float64[]
+    for g in groups
+        gy = Float64[]
+        for i in eachindex(xs)
+            xs[i] == g && push!(gy, ys[i])
+        end
+        isempty(gy) && continue
+        q1 = _quantile7(gy, 0.25)
+        q2 = _quantile7(gy, 0.5)
+        q3 = _quantile7(gy, 0.75)
+        iqr = q3 - q1
+        fence_lo = q1 - Float64(range) * iqr
+        fence_hi = q3 + Float64(range) * iqr
+        wlo = Inf
+        whi = -Inf
+        for v in gy
+            if fence_lo <= v <= fence_hi
+                v < wlo && (wlo = v)
+                v > whi && (whi = v)
+            elseif show_outliers
+                push!(out_x, g)
+                push!(out_y, v)
+            end
+        end
+        # box ring
+        _push_poly!(ax, Float64[g - 0.5 * boxw, g + 0.5 * boxw, g + 0.5 * boxw, g - 0.5 * boxw],
+                    Float64[q1, q1, q3, q3], c, (0.0, 0.0, 0.0, 1.0), 1.0, label)
+        # median + whiskers as segments
+        push!(whisk_x, g - 0.5 * boxw); push!(whisk_y, q2)
+        push!(whisk_x, g + 0.5 * boxw); push!(whisk_y, q2)
+        push!(whisk_x, g); push!(whisk_y, q3)
+        push!(whisk_x, g); push!(whisk_y, whi)
+        push!(whisk_x, g); push!(whisk_y, q1)
+        push!(whisk_x, g); push!(whisk_y, wlo)
+    end
+    isempty(whisk_x) || linesegments!(ax, whisk_x, whisk_y; color = (0.0, 0.0, 0.0, 1.0))
+    show_outliers && !isempty(out_x) &&
+        scatter!(ax, out_x, out_y; color = (0.0, 0.0, 0.0, 1.0), markersize = 6.0)
+    return ax.polys[end]
+end
+
+"""
+    violin!(ax, x, y; width = automatic·0.8, npoints = 200)
+
+Mirrored per-group KDE bodies (Makie stats/violin.jl, side :both).
+"""
+function violin!(ax::Axis, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+                 color = nothing, npoints::Integer = 200, label::String = "")
+    xs = _f64vec(x)
+    ys = _f64vec(y)
+    c = if color === nothing
+        cc = _next_cycle_color(ax)
+        (cc[1], cc[2], cc[3], 0.8)
+    else
+        _color(color)
+    end
+    groups = Float64[]
+    for v in xs
+        found = false
+        for g in groups
+            v == g && (found = true; break)
+        end
+        found || push!(groups, v)
+    end
+    sort!(groups)
+    step = 1.0
+    if length(groups) > 1
+        step = Inf
+        for i in 2:length(groups)
+            d = groups[i] - groups[i - 1]
+            d > 0.0 && d < step && (step = d)
+        end
+    end
+    halfw = 0.4 * step
+    np = Int64(npoints)
+    # pass 1: per-group KDEs; the width scale is the GLOBAL max density
+    # across groups (Makie scale :area default — peakier groups are wider)
+    grids = Vector{Vector{Float64}}()
+    denss = Vector{Vector{Float64}}()
+    gcs = Float64[]
+    gmax = 0.0
+    for g in groups
+        gy = Float64[]
+        for i in eachindex(xs)
+            xs[i] == g && push!(gy, ys[i])
+        end
+        length(gy) > 1 || continue
+        bw = _silverman_bandwidth(gy)
+        lo = minimum(gy) - 4.0 * bw
+        hi = maximum(gy) + 4.0 * bw
+        stepw = (hi - lo) / Float64(np - 1)
+        dens = Vector{Float64}(undef, np)
+        grid = Vector{Float64}(undef, np)
+        inv2bw2 = 1.0 / (2.0 * bw * bw)
+        norm = 1.0 / (Float64(length(gy)) * bw * sqrt(2.0 * pi))
+        for k in 1:np
+            grid[k] = lo + Float64(k - 1) * stepw
+            acc = 0.0
+            for v in gy
+                d = grid[k] - v
+                acc += exp(-d * d * inv2bw2)
+            end
+            dens[k] = acc * norm
+            dens[k] > gmax && (gmax = dens[k])
+        end
+        push!(grids, grid)
+        push!(denss, dens)
+        push!(gcs, g)
+    end
+    gmax == 0.0 && (gmax = 1.0)
+    for gi in eachindex(gcs)
+        g = gcs[gi]
+        grid = grids[gi]
+        dens = denss[gi]
+        rx = Float64[]
+        ry = Float64[]
+        for k in 1:np                      # right side up
+            push!(rx, g + halfw * dens[k] / gmax)
+            push!(ry, grid[k])
+        end
+        for k in np:-1:1                   # left side down (mirror)
+            push!(rx, g - halfw * dens[k] / gmax)
+            push!(ry, grid[k])
+        end
+        _push_poly!(ax, rx, ry, c, (0.0, 0.0, 0.0, 1.0), 1.0, label)
+    end
+    return ax.polys[end]
+end
+
 # ── data limits (consumed by C-008 autolimits) ──────────────────────────
 function _extrema_finite(v::Vector{Float64})
     lo = Inf
@@ -521,6 +752,17 @@ function data_limits(p::HVSpan)
     return p.horizontal ? (Inf, -Inf, lo, hi) : (lo, hi, Inf, -Inf)
 end
 data_limits(::ABLines) = (Inf, -Inf, Inf, -Inf)   # never affects autolimits
+function data_limits(p::BandPlot)
+    xlo, xhi = _extrema_finite(p.x)
+    llo, lhi = _extrema_finite(p.ylow)
+    hlo, hhi = _extrema_finite(p.yhigh)
+    return (xlo, xhi, min(llo, hlo), max(lhi, hhi))
+end
+function data_limits(p::PolyPlot)
+    xlo, xhi = _extrema_finite(p.xs)
+    ylo, yhi = _extrema_finite(p.ys)
+    return (xlo, xhi, ylo, yhi)
+end
 function data_limits(p::FilledCurve)
     xlo, xhi = _extrema_finite(p.x)
     ylo, yhi = _extrema_finite(p.y)

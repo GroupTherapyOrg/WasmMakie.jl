@@ -166,8 +166,27 @@ const CORPUS = Scene2[
                 Makie.stem!(ax, [1.0, 2.0, 3.0, 4.0], [0.5, -0.3, 0.8, 0.2]);
                 Makie.errorbars!(ax, [1.0, 2.0, 3.0, 4.0], [0.5, -0.3, 0.8, 0.2],
                                  [0.15, 0.1, 0.2, 0.1]; color = :red))),
-    # NOTE: a "recipes: density" corpus scene is deferred — Makie density!
-    # lowers to Band, which CanvasMakie draws only after the R-005 mesh path.
+    Scene2("recipes: pie",
+        fig -> WasmMakie.pie!(WasmMakie.Axis(fig[1, 1]), [3.0, 2.0, 1.0];
+                              colors = [:red, :green, :blue]),
+        (Makie, fig) -> Makie.pie!(Makie.Axis(fig[1, 1]), [3.0, 2.0, 1.0];
+                                   color = [:red, :green, :blue])),
+    Scene2("recipes: boxplot",
+        fig -> WasmMakie.boxplot!(WasmMakie.Axis(fig[1, 1]),
+                                  [1.0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2],
+                                  [1.0, 2, 3, 4, 5, 9, 2, 3, 3, 4, 5, 6]),
+        (Makie, fig) -> Makie.boxplot!(Makie.Axis(fig[1, 1]),
+                                       [1.0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2],
+                                       [1.0, 2, 3, 4, 5, 9, 2, 3, 3, 4, 5, 6])),
+    Scene2("recipes: violin",
+        fig -> WasmMakie.violin!(WasmMakie.Axis(fig[1, 1]),
+                                 [1.0, 1, 1, 1, 1, 2, 2, 2, 2, 2],
+                                 [1.0, 2, 3, 4, 5, 2, 3, 3, 4, 5]),
+        (Makie, fig) -> Makie.violin!(Makie.Axis(fig[1, 1]),
+                                      [1.0, 1, 1, 1, 1, 2, 2, 2, 2, 2],
+                                      [1.0, 2, 3, 4, 5, 2, 3, 3, 4, 5])),
+    # NOTE: "recipes: density" and "recipes: band" corpus scenes are deferred —
+    # the Makie versions lower to Band/mesh, which CanvasMakie draws after R-005.
 ]
 
 end # module
