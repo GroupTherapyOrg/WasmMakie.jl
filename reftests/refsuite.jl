@@ -20,6 +20,7 @@ import Downloads
 # namespaces the upstream test scripts expect (mirrors ReferenceTests.jl usings)
 using Makie.GeometryBasics
 using Makie.Colors
+using Statistics   # mean/std in stats-flavored recordings (R-006)
 using StructArrays
 import DelimitedFiles: readdlm
 import Makie.FileIO

@@ -551,10 +551,12 @@ end
         @test img7[50, 30] == GREEN          # r=20 < 25
         @test img7[20, 20] == WHITE          # corner outside
 
-        # band needs mesh (R-005): loud error, not a blank
+        # band renders via the R-006 mesh path (Gouraud rasterizer)
         s8 = pxscene()
-        band!(s8, [10.0, 90.0], [20.0, 20.0], [60.0, 60.0])
-        @test_throws Exception shot(s8)
+        band!(s8, [10.0, 90.0], [20.0, 20.0], [60.0, 60.0]; color = :green)
+        img8 = shot(s8)
+        @test img8[60, 50] == GREEN          # mid-band (scene y=40 → row 60)
+        @test img8[90, 50] == WHITE          # below it
     end
 end
 

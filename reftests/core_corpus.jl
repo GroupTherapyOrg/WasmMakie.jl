@@ -226,8 +226,24 @@ const CORPUS = Scene2[
         (Makie, fig) -> (xs = collect(0.0:0.25:2.0); ys = collect(0.0:0.25:2.0);
                 Makie.contour!(Makie.Axis(fig[1, 1]), xs, ys,
                                [sin(3x) * cos(3y) for x in xs, y in ys]))),
-    # NOTE: "recipes: density"/"band"/"contourf" corpus scenes are deferred —
-    # the Makie versions lower to Band/mesh (Isoband), drawable after R-005.
+    Scene2("recipes: band",
+        fig -> WasmMakie.band!(WasmMakie.Axis(fig[1, 1]), XS,
+                               [y - 0.15 for y in YS1], [y + 0.15 for y in YS1];
+                               color = (0.4, 0.5, 0.8, 0.8)),
+        (Makie, fig) -> Makie.band!(Makie.Axis(fig[1, 1]), XS,
+                                    [y - 0.15 for y in YS1], [y + 0.15 for y in YS1];
+                                    color = Makie.RGBAf(0.4, 0.5, 0.8, 0.8))),
+    Scene2("recipes: density",
+        fig -> WasmMakie.density!(WasmMakie.Axis(fig[1, 1]),
+                                  [0.1, 0.2, 0.25, 0.3, 0.5, 0.55, 0.6, 0.62, 0.9, 1.1];
+                                  color = (0.4, 0.5, 0.8, 0.8)),
+        (Makie, fig) -> Makie.density!(Makie.Axis(fig[1, 1]),
+                                       [0.1, 0.2, 0.25, 0.3, 0.5, 0.55, 0.6, 0.62, 0.9, 1.1];
+                                       color = Makie.RGBAf(0.4, 0.5, 0.8, 0.8))),
+    # NOTE: contourf is a DOCUMENTED divergence (quantized bands vs Isoband's
+    # exact polygons — C library, unavailable): measured 0.60 vs Makie at both
+    # 8x and 32x upsample (band-color mapping differs, not resolution). Not a
+    # parity-corpus member; revisit with a pure-Julia isoband port post-M8.
 ]
 
 end # module

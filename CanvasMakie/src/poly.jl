@@ -17,8 +17,17 @@ function draw_plot(rctx::WasmMakie.RecordingCtx, scene::Scene, poly::Makie.Poly)
     elseif Base.hasmethod(draw_poly, Tuple{WasmMakie.RecordingCtx, Scene, typeof(poly), typeof.(deref(poly.converted[]))...})
         return draw_poly(rctx, scene, poly, deref(poly.converted[])...)
     else
-        error("CanvasMakie: poly with args $(typeof.(deref(poly.args[]))) needs mesh support (plan R-005)")
+        # upstream worst case (overrides.jl draw_poly_as_mesh): draw the
+        # poly's children — mesh (R-006 rasterizer path) + outline lines
+        return draw_poly_as_mesh(rctx, scene, poly)
     end
+end
+
+function draw_poly_as_mesh(rctx::WasmMakie.RecordingCtx, scene::Scene, poly)
+    for i in eachindex(poly.plots)
+        draw_plot(rctx, scene, poly.plots[i])
+    end
+    return nothing
 end
 
 # ── projection: translated from CairoMakie utils.jl (viewport matrix path) ──

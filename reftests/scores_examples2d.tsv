@@ -1,23 +1,27 @@
 # status	score	title	detail
 error	-	poly and colormap	MethodError: no method matching red(::Vector{ColorTypes.RGBA{Float32}}) The function `red` exists, but no method is defined for this combination of argument types.  Closest candidates are:   red(!Matched::ColorTypes.RGB24)    @ ColorTypes ~/.julia/packages/ColorTypes/L7biZ/src/traits.jl:17   red(!Ma
-error	-	quiver	CanvasMakie: poly with args (Vector{GeometryBasics.Mesh},) needs mesh support (plan R-005)
+error	-	Arrows on hemisphere	CanvasMakie: 3D mesh shading not supported (2D scope, R-006)
+error	-	colored triangle (mesh, poly, 3D) + poly stroke	MethodError: no method matching red(::Vector{ColorTypes.RGBA{Float32}}) The function `red` exists, but no method is defined for this combination of argument types.  Closest candidates are:   red(!Matched::ColorTypes.RGB24)    @ ColorTypes ~/.julia/packages/ColorTypes/L7biZ/src/traits.jl:17   red(!Ma
+error	-	Band with NaN	InexactError: Int64(NaN)
 error	-	Pie with Segment-specific Radius	CanvasMakie: pattern fills on poly not implemented yet (plan R-005)
 error	-	Array of Images Scatter	CanvasMakie: marker Matrix{ColorTypes.RGBA{FixedPointNumbers.N0f8}} not implemented yet
-error	-	Triplot with points, ghost edges, and convex hull	CanvasMakie: poly with args (Vector{Point{2, Float32}}, Vector{GeometryBasics.TriangleFace{Int64}}) needs mesh support (plan R-005)
-error	-	Triplot of a constrained triangulation with holes and a custom bounding box	CanvasMakie: poly with args (Vector{Point{2, Float32}}, Vector{GeometryBasics.TriangleFace{Int64}}) needs mesh support (plan R-005)
-error	-	Triplot with nonlinear transformation	CanvasMakie: poly with args (Vector{Point{2, Float32}}, Vector{GeometryBasics.TriangleFace{Int64}}) needs mesh support (plan R-005)
-error	-	Triplot after adding points and make sure the representative_point_list is correctly updated	CanvasMakie: poly with args (Vector{Point{2, Float32}}, Vector{GeometryBasics.TriangleFace{Int64}}) needs mesh support (plan R-005)
-error	-	Triplot Showing ghost edges for a triangulation with disjoint boundaries	CanvasMakie: poly with args (Vector{Point{2, Float32}}, Vector{GeometryBasics.TriangleFace{Int64}}) needs mesh support (plan R-005)
-error	-	Transformed 2D Arrows	CanvasMakie: poly with args (Vector{GeometryBasics.Mesh},) needs mesh support (plan R-005)
-error	-	arrows2d alignment	CanvasMakie: poly with args (Vector{GeometryBasics.Mesh},) needs mesh support (plan R-005)
-error	-	arrows2d z-order	CanvasMakie: poly with args (Vector{GeometryBasics.Mesh},) needs mesh support (plan R-005)
-error	-	Dendrogram	CanvasMakie: poly with args (Vector{Union{AbstractVector{<:Union{NTuple{N, T}, StaticArraysCore.StaticArray{Tuple{N}, T, 1}} where {N, T}}, NTuple{N, T} where {N, T}, GeometryBasics.AbstractMesh, GeometryBasics.HyperRectangle, GeometryBasics.MultiPolygon, GeometryBasics.Polygon, StaticArraysCore.Sta
+error	-	Triplot with points, ghost edges, and convex hull	CanvasMakie: draw_atomic not implemented yet for Plot
+error	-	Triplot of a constrained triangulation with holes and a custom bounding box	CanvasMakie: draw_atomic not implemented yet for Plot
+error	-	Triplot with nonlinear transformation	CanvasMakie: draw_atomic not implemented yet for Plot
+error	-	Triplot after adding points and make sure the representative_point_list is correctly updated	CanvasMakie: draw_atomic not implemented yet for Plot
+error	-	Triplot Showing ghost edges for a triangulation with disjoint boundaries	CanvasMakie: draw_atomic not implemented yet for Plot
+recorded	0.3881	Standard deviation band	
+recorded	0.1793	arrows2d z-order	
+recorded	0.1194	quiver	
+recorded	0.0673	Transformed 2D Arrows	
 recorded	0.052	RGB heatmap, heatmap + image overlap	
 recorded	0.0518	Voronoiplot with a nonlinear transform	
 recorded	0.0465	LaTeXStrings linesegment offsets	
+recorded	0.0462	arrows2d alignment	
 recorded	0.0435	colorscale (lines)	
 recorded	0.0429	series	
 recorded	0.0396	Pie Position	
+recorded	0.0396	Tooltip	
 recorded	0.0346	annotation manual	
 recorded	0.0343	heatmap_interpolation	
 recorded	0.0342	Scalar colors from colormaps	
@@ -35,14 +39,17 @@ recorded	0.0245	hexbin threshold
 recorded	0.0244	image	
 recorded	0.0236	Voronoiplot with some custom bounding boxes may not contain all data sites	
 recorded	0.0236	Voronoiplot for a tessellation with a custom bounding box	
+recorded	0.0236	Dendrogram	
 recorded	0.0231	bracket scalar	
 recorded	0.0231	Stephist	
 recorded	0.022	rainclouds	
 recorded	0.0207	Simple pie charts	
+recorded	0.0207	space 2D autolimits	
 recorded	0.0198	stem	
 recorded	0.0197	minor grid & scales	
 recorded	0.0196	Scatter & Text transformations	
 recorded	0.0187	spurious minor tick (#3487)	
+recorded	0.0185	space 2D	
 recorded	0.0176	Grouped bar	
 recorded	0.0175	contour labels 2D	
 recorded	0.0174	contourf bug #3683	
@@ -85,19 +92,12 @@ recorded	0.01	qqnorm
 recorded	0.0099	hexbin colorrange highclip lowclip	
 recorded	0.0093	contour with single alpha color	
 recorded	0.0091	Voronoiplot for a centroidal tessellation with an automatic colormap	
-skipped	-	Arrows on hemisphere	skip pattern: mesh(
-skipped	-	FEM poly and mesh	skip pattern: mesh(
-skipped	-	colored triangle (mesh, poly, 3D) + poly stroke	skip pattern: mesh(
-skipped	-	Standard deviation band	skip pattern: band(
-skipped	-	Band with NaN	skip pattern: band!
+skipped	-	FEM poly and mesh	skip pattern: wireframe
 skipped	-	Transforming lines	skip pattern: Stepper
 skipped	-	Axes label rotations	skip pattern: Stepper
 skipped	-	Colorbar label rotations	skip pattern: Stepper
-skipped	-	space 2D	skip pattern: mesh!
-skipped	-	space 2D autolimits	skip pattern: mesh!
 skipped	-	2D surface with explicit color	skip pattern: surface(
-skipped	-	textlabel	skip pattern: mesh!
-skipped	-	Tooltip	skip pattern: mesh!
+skipped	-	textlabel	skip pattern: Axis3
 skipped	-	tricontourf	skip pattern: tricontourf
 skipped	-	tricontourf extendhigh extendlow	skip pattern: tricontourf
 skipped	-	tricontourf relative mode	skip pattern: tricontourf
@@ -113,10 +113,10 @@ skipped	-	hexbin bin tuple	skip pattern: wireframe
 skipped	-	hexbin two cellsizes	skip pattern: wireframe
 skipped	-	hexbin one cellsize	skip pattern: wireframe
 skipped	-	px_per_unit and scalefactor	skip pattern: Stepper
-skipped	-	Clip planes - CairoMakie overrides	skip pattern: band!
-skipped	-	Color Patterns	skip pattern: mesh!
-skipped	-	Color Pattern orientation	skip pattern: mesh(
-skipped	-	Color patterns in recipes	skip pattern: band!
+skipped	-	Clip planes - CairoMakie overrides	skip pattern: tricontourf
+skipped	-	Color Patterns	skip pattern: meshscatter
+skipped	-	Color Pattern orientation	skip pattern: meshscatter
+skipped	-	Color patterns in recipes	skip pattern: Stepper
 skipped	-	arrow min- and maxshaftlength scaling	skip pattern: arrows3d
 skipped	-	arrows3d alignment	skip pattern: arrows3d
 skipped	-	arrows2d updates	skip pattern: Stepper
@@ -124,4 +124,4 @@ skipped	-	arrows3d updates	skip pattern: arrows3d
 skipped	-	Transformed rotations	skip pattern: contour3d
 unsupported	-	Streamplot animation	result type VideoStream (video/steps?)
 unsupported	-	Line changing colour	result type VideoStream (video/steps?)
-# REFPASS passed=71/88 scored=73 recorded=73 errored=13 unsupported=2 rate=0.807
+# REFPASS passed=76/95 scored=82 recorded=82 errored=11 unsupported=2 rate=0.8

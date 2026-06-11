@@ -255,6 +255,11 @@ function draw_atomic(rctx::WasmMakie.RecordingCtx, scene::Scene,
 
     color = attr[:clipped_colors][]
     linewidth = attr[:clipped_linewidths][]
+    # Cairo draws nothing at linewidth 0; Canvas IGNORES lineWidth = 0 and
+    # keeps the stale width (R-006: Band's invisible outline child)
+    maxlw = linewidth isa AbstractArray ? (isempty(linewidth) ? 0.0 : maximum(linewidth)) :
+            Float64(linewidth)
+    maxlw <= 0.0 && return
     linestyle = attr[:linestyle][]
     linecap = _cap_int(attr[:linecap][], Makie.Key{:linecap}())
     joinstyle_raw = is_lines ? attr[:joinstyle][] : 0

@@ -28,20 +28,20 @@ recorded	0.0059	Scatter fonts
 recorded	0.0052	Miter Joints for line rendering	
 recorded	0.004	lines with gaps	
 recorded	0.0025	Anisotropic markers	
-skipped	-	Surface with NaN points	skip pattern: mesh(
+skipped	-	Surface with NaN points	skip pattern: surface(
 skipped	-	Surface invert_normals	skip pattern: surface(
 skipped	-	Voxel - texture mapping	skip pattern: voxel
 skipped	-	Voxel uvs	skip pattern: voxel
 skipped	-	Voxel - colors and colormap	skip pattern: voxel
 skipped	-	Voxel - lowclip and highclip	skip pattern: voxel
 skipped	-	Voxel - gap attribute	skip pattern: voxel
-skipped	-	Plot transform overwrite	skip pattern: mesh!
-skipped	-	uv_transform	skip pattern: mesh(
-skipped	-	per element uv_transform	skip pattern: mesh(
+skipped	-	Plot transform overwrite	skip pattern: meshscatter
+skipped	-	uv_transform	skip pattern: meshscatter
+skipped	-	per element uv_transform	skip pattern: meshscatter
 skipped	-	Scatter with FastPixel	skip pattern: Axis3
 skipped	-	Reverse image, heatmap and surface axes	skip pattern: surface(
-skipped	-	meshscatter + scatter marker conversions	skip pattern: mesh!
-skipped	-	meshscatter + scatter marker conversions with model	skip pattern: mesh!
+skipped	-	meshscatter + scatter marker conversions	skip pattern: meshscatter
+skipped	-	meshscatter + scatter marker conversions with model	skip pattern: meshscatter
 skipped	-	scatter marker_offset 3D with rotation	skip pattern: LScene
 skipped	-	transformed surface	skip pattern: meshscatter
 unsupported	-	scatter with glow	no reference image for this backend/version

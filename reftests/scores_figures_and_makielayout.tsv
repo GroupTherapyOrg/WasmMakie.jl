@@ -1,5 +1,6 @@
 # status	score	title	detail
 error	-	Textbox	UndefVarError: `click` not defined in `Main.RefSuite` Suggestion: check for spelling errors or missing imports.
+recorded	0.251	Label with text wrapping	
 recorded	0.0609	Latex labels after the fact	
 recorded	0.0442	Axis titles and subtitles	
 recorded	0.035	Legend with scalar colors	
@@ -23,15 +24,14 @@ recorded	0.0067	Toggle orientation
 recorded	0.0046	Checkbox	
 recorded	0.0028	Figure with boxes	
 skipped	-	Figure with Blocks	skip pattern: surface(
-skipped	-	Label with text wrapping	skip pattern: mesh!
-skipped	-	Legend Image-, Mesh- and MeshScatterElements	skip pattern: mesh!
-skipped	-	Legend visibility toggles	skip pattern: band!
+skipped	-	Legend Image-, Mesh- and MeshScatterElements	skip pattern: meshscatter
+skipped	-	Legend visibility toggles	skip pattern: Stepper
 skipped	-	LaTeXStrings in Axis3 plots	skip pattern: surface!
 skipped	-	PolarAxis decorations	skip pattern: surface!
 skipped	-	PolarAxis ticks	skip pattern: Stepper
 skipped	-	Axis3 axis reversal	skip pattern: surface!
-skipped	-	Axis3 fullbox	skip pattern: mesh!
-skipped	-	Axis3 viewmodes, xreversed, aspect, perspectiveness	skip pattern: mesh!
-skipped	-	Axis3 clipping	skip pattern: mesh(
+skipped	-	Axis3 fullbox	skip pattern: Axis3
+skipped	-	Axis3 viewmodes, xreversed, aspect, perspectiveness	skip pattern: Axis3
+skipped	-	Axis3 clipping	skip pattern: meshscatter
 skipped	-	Colorbar for recipes	skip pattern: volume
-# REFPASS passed=21/23 scored=22 recorded=22 errored=1 unsupported=0 rate=0.913
+# REFPASS passed=21/24 scored=23 recorded=23 errored=1 unsupported=0 rate=0.875

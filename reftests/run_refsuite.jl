@@ -17,9 +17,10 @@ isdir(REFDIR) || error("reference images not extracted — run RefScorer.fetch f
 files = isempty(ARGS) ? ["short_tests"] : ARGS
 
 # the 2D-target skip list: mesh/3D/volume territory (plan R-005 / out of scope)
+# R-006: band/2D-mesh now render (CanvasMakie mesh path); 3D stays skipped
 RefSuite.SKIP_PATTERNS[] = String[
-    "mesh(", "mesh!", "meshscatter", "surface(", "surface!", "volume", "voxel",
-    "Axis3", "band(", "band!", "tricontourf", "contour3d", "wireframe",
+    "meshscatter", "surface(", "surface!", "volume", "voxel",
+    "Axis3", "tricontourf", "contour3d", "wireframe",
     "arrows3d", "LScene", "matcap", "uv_mesh", "Stepper",
 ]
 

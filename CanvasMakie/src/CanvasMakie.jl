@@ -34,6 +34,7 @@ include("lines.jl")
 include("scatter.jl")
 include("image.jl")
 include("poly.jl")
+include("mesh.jl")
 include("text.jl")
 
 export Screen

@@ -20,12 +20,12 @@ recorded	0.006	redisplay after closing screen
 recorded	0.0001	lines linesegments width test	
 recorded	0.0	Scene backgroundcolor	
 skipped	-	meshscatter colors, Axis3	skip pattern: meshscatter
-skipped	-	transparent mesh texture	skip pattern: mesh(
+skipped	-	transparent mesh texture	skip pattern: uv_mesh
 skipped	-	Unequal x and y sizes in surface	skip pattern: surface(
 skipped	-	Matrices of data in surfaces	skip pattern: surface(
 skipped	-	heatmaps & surface	skip pattern: surface(
 skipped	-	barplot lowclip highclip nan_color	skip pattern: meshscatter
 skipped	-	colorbuffer for axis	skip pattern: meshscatter
-skipped	-	matcap	skip pattern: mesh!
-skipped	-	StructArrays compat	skip pattern: band(
+skipped	-	matcap	skip pattern: meshscatter
+skipped	-	StructArrays compat	skip pattern: Stepper
 # REFPASS passed=19/20 scored=20 recorded=20 errored=0 unsupported=0 rate=0.95
