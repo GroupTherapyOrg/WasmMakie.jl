@@ -29,6 +29,7 @@ include("render.jl")
 include("screen.jl")
 include("lines.jl")
 include("scatter.jl")
+include("image.jl")
 
 export Screen
 

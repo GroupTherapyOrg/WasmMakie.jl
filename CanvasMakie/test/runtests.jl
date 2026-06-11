@@ -233,3 +233,55 @@ end
         @test_throws Exception shot(s8)
     end
 end
+
+@testset "heatmap + image render (D-004)" begin
+    if !HAVE_RENDERER
+        @test_skip "headless renderer unavailable"
+    else
+        pxscene() = Scene(size = (100, 100), backgroundcolor = :white, camera = campixel!)
+        shot(scene) = Makie.colorbuffer(CanvasMakie.Screen(scene))
+        ch(px) = (Float64(ColorTypes.red(px)), Float64(ColorTypes.green(px)), Float64(ColorTypes.blue(px)))
+        ≈ₚ(a, b) = all(abs.(a .- b) .< 0.02)
+
+        # image! with 2×2 primaries — orientation truth measured from real
+        # CairoMakie 0.15.11: img[i,j] maps i→x, j→y (y-up), so img[1,1] (red)
+        # is the BOTTOM-left quadrant (image row 75, col 25)
+        s1 = pxscene()
+        img2 = [Makie.RGBAf(1, 0, 0, 1) Makie.RGBAf(0, 1, 0, 1);
+                Makie.RGBAf(0, 0, 1, 1) Makie.RGBAf(1, 1, 0, 1)]
+        image!(s1, 0 .. 100, 0 .. 100, img2; interpolate = false)
+        out1 = shot(s1)
+        @test ≈ₚ(ch(out1[75, 25]), (1.0, 0.0, 0.0))   # img[1,1] red
+        @test ≈ₚ(ch(out1[75, 75]), (0.0, 0.0, 1.0))   # img[2,1] blue
+        @test ≈ₚ(ch(out1[25, 25]), (0.0, 1.0, 0.0))   # img[1,2] green
+        @test ≈ₚ(ch(out1[25, 75]), (1.0, 1.0, 0.0))   # img[2,2] yellow
+
+        # heatmap quadrant colors — oracle viridis values from CairoMakie
+        s2 = pxscene()
+        heatmap!(s2, [0, 50, 100], [0, 50, 100], [1 2; 3 4]; interpolate = false)
+        out2 = shot(s2)
+        @test ≈ₚ(ch(out2[75, 25]), (0.267, 0.004, 0.329))  # v=1 → viridis(0)
+        @test ≈ₚ(ch(out2[75, 75]), (0.208, 0.718, 0.475))  # v=3
+        @test ≈ₚ(ch(out2[25, 25]), (0.192, 0.408, 0.557))  # v=2
+        @test ≈ₚ(ch(out2[25, 75]), (0.992, 0.906, 0.145))  # v=4
+
+        # irregular grid → slow path (per-cell quads), oracle-pinned probes
+        s3 = pxscene()
+        heatmap!(s3, [0, 20, 100], [0, 60, 100], [1 2; 3 4])
+        out3 = shot(s3)
+        @test ≈ₚ(ch(out3[70, 10]), (0.267, 0.004, 0.329))
+        @test ≈ₚ(ch(out3[70, 60]), (0.208, 0.718, 0.475))
+        @test ≈ₚ(ch(out3[20, 10]), (0.188, 0.408, 0.557))
+        @test ≈ₚ(ch(out3[20, 60]), (0.996, 0.906, 0.141))
+
+        # interpolate=true blends at the quadrant seam (exact kernel differs
+        # from Cairo's bilinear — assert blending, not exact values)
+        s4 = pxscene()
+        image!(s4, 0 .. 100, 0 .. 100, img2; interpolate = true)
+        out4 = shot(s4)
+        mid = ch(out4[50, 50])
+        for quad in ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0), (1.0, 1.0, 0.0))
+            @test !≈ₚ(mid, quad)
+        end
+    end
+end
