@@ -5,6 +5,7 @@ version = "0.0.1"
 
 [deps]
 ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 PNGFiles = "f57f5aa1-a3ce-4bc8-8ab9-96f992907883"
 WasmMakie = "782397d3-b2e0-4093-86f4-3070b4a5c6bd"

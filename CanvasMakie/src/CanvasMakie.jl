@@ -27,6 +27,9 @@ import PNGFiles
 
 include("render.jl")
 include("screen.jl")
+
+# shared by all extraction adapters: has this compute-graph node been added?
+_has_node(attr, name::Symbol) = haskey(attr.outputs, name) || haskey(attr.inputs, name)
 include("lines.jl")
 include("scatter.jl")
 include("image.jl")

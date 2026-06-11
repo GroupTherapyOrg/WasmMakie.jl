@@ -102,6 +102,13 @@ function _set_dash_scaled!(ctx, dash::Vector{Float64}, lw::Float64)
 end
 
 function _stroke_solid!(ctx, c::NTuple{4,Float64}, lw::Float64, dash::Vector{Float64})
+    # WASM-DIVERGENCE: clip interpolation can yield NaN colors for degenerate
+    # segments; Cairo draws nothing visible for them, we skip the stroke
+    # (behavior pinned by the clipping reference tests)
+    if !(isfinite(c[1]) && isfinite(c[2]) && isfinite(c[3]) && isfinite(c[4]) && isfinite(lw))
+        begin_path(ctx)
+        return nothing
+    end
     set_line_width(ctx, lw)
     _set_dash_scaled!(ctx, dash, lw)
     set_stroke_rgba(ctx, 255.0 * c[1], 255.0 * c[2], 255.0 * c[3], c[4])
@@ -113,6 +120,10 @@ end
 function _stroke_gradient!(ctx, p1::NTuple{2,Float64}, p2::NTuple{2,Float64},
                            c1::NTuple{4,Float64}, c2::NTuple{4,Float64},
                            lw::Float64, dash::Vector{Float64})
+    if !(all(isfinite, c1) && all(isfinite, c2) && all(isfinite, p1) && all(isfinite, p2) && isfinite(lw))
+        begin_path(ctx)
+        return nothing
+    end
     set_line_width(ctx, lw)
     _set_dash_scaled!(ctx, dash, lw)
     id = gradient_linear_new(ctx, p1[1], p1[2], p2[1], p2[2])
