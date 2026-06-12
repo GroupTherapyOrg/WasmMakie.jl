@@ -183,7 +183,34 @@ which positions are Int64 vs Float64). Consumed by `assets/replay.js`.
 """
 function to_json(cmds::Vector{Command})
     parts = String[]
-    for c in cmds
+    i = 1
+    n = length(cmds)
+    while i <= n
+        c = cmds[i]
+        # Coalesce runs of img_buf_push_rgba (one command per PIXEL — a
+        # 240×240 image is 57k commands ≈ 2.5 MB of JSON) into a single
+        # synthetic `img_buf_push_rgba_b64` carrying the RGBA bytes as
+        # base64. replay.js expands it through the same per-pixel glue call,
+        # so replayed pixels exercise the identical code path.
+        if c.op === :img_buf_push_rgba
+            j = i
+            while j <= n && cmds[j].op === :img_buf_push_rgba
+                j += 1
+            end
+            if j - i >= 8
+                bytes = Vector{UInt8}(undef, 4 * (j - i))
+                k = 0
+                for t in i:(j - 1)
+                    for v in cmds[t].iargs
+                        k += 1
+                        bytes[k] = UInt8(clamp(v, 0, 255))
+                    end
+                end
+                push!(parts, "{\"op\":\"img_buf_push_rgba_b64\",\"args\":[\"$(Base64.base64encode(bytes))\"]}")
+                i = j
+                continue
+            end
+        end
         op = OP_TABLE[c.op]
         vals = String[]
         fi, ii = 1, 1
@@ -195,6 +222,7 @@ function to_json(cmds::Vector{Command})
             end
         end
         push!(parts, "{\"op\":\"$(c.op)\",\"args\":[$(join(vals, ","))]}")
+        i += 1
     end
     return "[" * join(parts, ",") * "]"
 end

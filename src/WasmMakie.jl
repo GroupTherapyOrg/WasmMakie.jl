@@ -32,6 +32,8 @@ abstract-element vectors, no ccall, no IO in compiled paths.
 """
 module WasmMakie
 
+import Base64
+
 # Stories land in this order (see WASMMAKIE_PLAN.md):
 #   ops.jl   — the canvas ops table (F-002) ✓
 #   ctx.jl   — WasmCtx / RecordingCtx (F-003)

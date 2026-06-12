@@ -3,6 +3,9 @@ uuid = "782397d3-b2e0-4093-86f4-3070b4a5c6bd"
 authors = ["Dale Black <dalejamesblack@gmail.com>"]
 version = "0.1.0"
 
+[deps]
+Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+
 [compat]
 julia = "~1.12, ~1.13"
 

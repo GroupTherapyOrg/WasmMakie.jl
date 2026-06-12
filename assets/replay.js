@@ -16,7 +16,20 @@
 (function (global) {
   function replayCommands(commands, target, importsFactory, specs) {
     const imports = importsFactory(target);
+    const b64decode = (s) =>
+      typeof Buffer !== 'undefined' ? Uint8Array.from(Buffer.from(s, 'base64'))
+                                    : Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
     for (const cmd of commands) {
+      // synthetic op from to_json: a coalesced run of img_buf_push_rgba
+      // pixels as base64 RGBA bytes — expanded through the SAME glue call
+      if (cmd.op === 'img_buf_push_rgba_b64') {
+        const bytes = b64decode(cmd.args[0]);
+        for (let k = 0; k < bytes.length; k += 4) {
+          imports.img_buf_push_rgba(BigInt(bytes[k]), BigInt(bytes[k + 1]),
+                                    BigInt(bytes[k + 2]), BigInt(bytes[k + 3]));
+        }
+        continue;
+      }
       const kinds = specs[cmd.op];
       if (!kinds) throw new Error('replay: unknown op "' + cmd.op + '"');
       if (kinds.length !== cmd.args.length) {
