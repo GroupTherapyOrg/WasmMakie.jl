@@ -179,9 +179,20 @@ function canvas_draw(rctx::WasmMakie.RecordingCtx, scene::Scene)
     return
 end
 
-# Default: atomic plots dispatch to their draw_atomic; overrides (Poly) hook here.
-draw_plot(rctx::WasmMakie.RecordingCtx, scene::Scene, plot::Makie.AbstractPlot) =
-    draw_atomic(rctx, scene, plot)
+# Default: atomic plots dispatch to their draw_atomic; overrides (Poly) hook
+# here. Non-atomic recipes that survive collect_atomic_plots (e.g. Triplot's
+# inner recipe layers) recurse into their children sorted by z — upstream
+# plot-primitives.jl draw_plot(::Plot) does exactly this.
+function draw_plot(rctx::WasmMakie.RecordingCtx, scene::Scene, plot::Makie.AbstractPlot)
+    if !is_canvasmakie_atomic_plot(plot) && !isempty(plot.plots)
+        zvals = Makie.zvalue2d.(plot.plots)
+        for idx in sortperm(zvals)
+            draw_plot(rctx, scene, plot.plots[idx])
+        end
+        return
+    end
+    return draw_atomic(rctx, scene, plot)
+end
 
 # Per-plot-type methods are added from D-002 on; anything unimplemented is loud.
 draw_atomic(::WasmMakie.RecordingCtx, ::Scene, plot::Makie.AbstractPlot) =

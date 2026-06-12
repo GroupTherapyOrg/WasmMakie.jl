@@ -9,6 +9,15 @@
 #   - Colorant framebuffers → flat Vector{NTuple{4,Float64}} RGBA buffer
 #   - arbitrary winding accepted (negative-area faces are vertex-swapped;
 #     upstream's geometry stage guarantees CCW before the loop)
+#   - coverage-based edge antialiasing (signed pixel distance per edge,
+#     clamped to [0,1], multiplied): upstream jl_rasterizer is hard-edged,
+#     but the rendering ORACLE here is Cairo's antialiased mesh patterns —
+#     hard edges score outside the reference threshold on band tests
+#   - REPLACE compositing within a mesh (highest-coverage fragment wins)
+#     instead of standard_transparency blending: the buffer is per-mesh
+#     (non-premultiplied RGBA for the ImageData blit) and triangles tile —
+#     blending double-darkens translucent fills at shared edges/feathers,
+#     where Cairo composites the whole mesh pattern once
 
 @inline _edge_function(ax::Float64, ay::Float64, bx::Float64, by::Float64,
                        cx::Float64, cy::Float64) =
@@ -33,6 +42,10 @@ function rasterize_mesh!(pix::Vector{NTuple{4,Float64}}, depthbuf::Vector{Float6
         i1 = faces[3 * fi - 2]
         i2 = faces[3 * fi - 1]
         i3 = faces[3 * fi]
+        # faces touching a NaN vertex draw nothing (Band-with-NaN gaps —
+        # matches Cairo, which skips mesh patches with non-finite corners)
+        (isfinite(fx[i1]) && isfinite(fy[i1]) && isfinite(fx[i2]) &&
+         isfinite(fy[i2]) && isfinite(fx[i3]) && isfinite(fy[i3])) || continue
         # accept either winding: swap to positive area (upstream guarantees CCW)
         area = _edge_function(fx[i1], fy[i1], fx[i2], fy[i2], fx[i3], fy[i3])
         if area < 0.0
@@ -47,6 +60,12 @@ function rasterize_mesh!(pix::Vector{NTuple{4,Float64}}, depthbuf::Vector{Float6
         xmax = min(Int64(ceil(max(x1, max(x2, x3)))), w)
         ymin = max(Int64(floor(min(y1, min(y2, y3)))), 1)
         ymax = min(Int64(ceil(max(y1, max(y2, y3)))), h)
+        # per-edge gradient magnitudes (edge-fn change per pixel step) for
+        # the signed-distance coverage term
+        g1 = sqrt((y3 - y2)^2 + (x3 - x2)^2)
+        g2 = sqrt((y1 - y3)^2 + (x1 - x3)^2)
+        g3 = sqrt((y2 - y1)^2 + (x2 - x1)^2)
+        (g1 == 0.0 || g2 == 0.0 || g3 == 0.0) && continue
         for py in ymin:ymax
             for px in xmin:xmax
                 cx = Float64(px)
@@ -54,24 +73,39 @@ function rasterize_mesh!(pix::Vector{NTuple{4,Float64}}, depthbuf::Vector{Float6
                 w1 = _edge_function(x2, y2, x3, y3, cx, cy)
                 w2 = _edge_function(x3, y3, x1, y1, cx, cy)
                 w3 = _edge_function(x1, y1, x2, y2, cx, cy)
-                (w1 >= 0.0 && w2 >= 0.0 && w3 >= 0.0) || continue
-                b1 = w1 / area
-                b2 = w2 / area
-                b3 = w3 / area
+                # coverage: pixels INSIDE stay exactly solid (shared interior
+                # edges must not seam — each center is inside one triangle);
+                # only the outside of an edge is feathered by signed distance
+                c1 = w1 >= 0.0 ? 1.0 : clamp(w1 / g1 + 0.5, 0.0, 1.0)
+                c2 = w2 >= 0.0 ? 1.0 : clamp(w2 / g2 + 0.5, 0.0, 1.0)
+                c3 = w3 >= 0.0 ? 1.0 : clamp(w3 / g3 + 0.5, 0.0, 1.0)
+                cov = c1 * c2 * c3
+                cov <= 0.0 && continue
+                b1 = max(w1, 0.0) / area
+                b2 = max(w2, 0.0) / area
+                b3 = max(w3, 0.0) / area
+                bs = b1 + b2 + b3
+                bs == 0.0 && continue
+                b1 /= bs; b2 /= bs; b3 /= bs
                 d = b1 * fz[i1] + b2 * fz[i2] + b3 * fz[i3]
                 k = px + (py - 1) * w
                 d <= depthbuf[k] || continue
-                depthbuf[k] = d
+                cov >= 0.5 && (depthbuf[k] = d)   # only solid pixels occlude
                 sr = b1 * fr[i1] + b2 * fr[i2] + b3 * fr[i3]
                 sg = b1 * fg[i1] + b2 * fg[i2] + b3 * fg[i3]
                 sb = b1 * fb[i1] + b2 * fb[i2] + b3 * fb[i3]
-                sa = b1 * fa[i1] + b2 * fa[i2] + b3 * fa[i3]
-                # standard_transparency: src·α + dest·(1−α)
+                sa = cov * (b1 * fa[i1] + b2 * fa[i2] + b3 * fa[i3])
+                # within one mesh the triangles tile without overlap — keep
+                # the highest-coverage fragment (REPLACE) instead of jl_
+                # rasterizer's standard_transparency blend: shared-edge
+                # pixels and outside feathers must not double-blend
+                # translucent fills (Cairo composites the whole mesh pattern
+                # ONCE); the buffer is per-mesh and the canvas blit applies
+                # source-over compositing against the scene
                 dst = pix[k]
-                pix[k] = (sa * sr + (1.0 - sa) * dst[1],
-                          sa * sg + (1.0 - sa) * dst[2],
-                          sa * sb + (1.0 - sa) * dst[3],
-                          sa + (1.0 - sa) * dst[4])
+                if sa >= dst[4]
+                    pix[k] = (sr, sg, sb, sa)
+                end
             end
         end
     end

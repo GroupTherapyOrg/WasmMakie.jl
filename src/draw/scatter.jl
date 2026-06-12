@@ -94,6 +94,36 @@ function draw_marker_circle!(ctx, x::Float64, y::Float64,
     return nothing
 end
 
+"Load an image-marker pixel buffer. Like upstream's one `marker_surf` per
+scatter, the buffer is loaded ONCE per batch and blitted at every position —
+per-pixel push commands for a large marker at every point would explode the
+command stream (the billboard cow.png test: 96 markers × 160K pixels)."
+function marker_image_buffer!(ctx, pixels::Vector{NTuple{4,Float64}}, w::Int64, h::Int64)
+    img_buf_new(ctx, w, h)
+    for k in 1:(w * h)
+        r, g, b, a = pixels[k]
+        img_buf_push_rgba(ctx, round(Int64, 255.0 * r), round(Int64, 255.0 * g),
+                          round(Int64, 255.0 * b), round(Int64, 255.0 * a))
+    end
+    return nothing
+end
+
+"Image marker (translated from CairoMakie draw_marker ::Matrix{<:Colorant}):
+blit the CURRENT image buffer (see `marker_image_buffer!`) centered in the
+unit marker frame — upstream's scale(1/w, 1/h) + paint at (-w/2, -h/2).
+Stroke is unused upstream."
+function draw_marker_image!(ctx, x::Float64, y::Float64,
+                            m11::Float64, m12::Float64, m21::Float64, m22::Float64,
+                            w::Int64, h::Int64)
+    _marker_frame!(ctx, x, y, m11, m12, m21, m22)
+    set_image_smoothing(ctx, Int64(1))
+    translate(ctx, -0.5, -0.5)
+    scale_xy(ctx, 1.0 / w, 1.0 / h)
+    draw_image_buf(ctx, 0.0, 0.0, Float64(w), Float64(h))
+    restore(ctx)
+    return nothing
+end
+
 "Rect marker (translated from CairoMakie draw_marker ::Type{<:Rect})."
 function draw_marker_rect!(ctx, x::Float64, y::Float64,
                            m11::Float64, m12::Float64, m21::Float64, m22::Float64,

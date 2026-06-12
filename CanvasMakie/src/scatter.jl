@@ -93,6 +93,18 @@ end
 _rgba4(c) = (Float64(ColorTypes.red(c)), Float64(ColorTypes.green(c)),
              Float64(ColorTypes.blue(c)), Float64(ColorTypes.alpha(c)))
 
+"Flatten an image matrix (row=y, col=x — upstream permutedims (2,1)) into the
+draw layer's x-fast buffer layout and load it as the current image buffer."
+function _load_marker_image!(rctx, m::AbstractMatrix{<:Makie.Colorant})
+    mh, mw = size(m, 1), size(m, 2)
+    pixels = Vector{NTuple{4,Float64}}(undef, mw * mh)
+    for j in 1:mh, i in 1:mw
+        pixels[i + (j - 1) * mw] = _rgba4(Makie.to_color(m[j, i]))
+    end
+    WasmMakie.marker_image_buffer!(rctx, pixels, Int64(mw), Int64(mh))
+    return nothing
+end
+
 function draw_atomic(rctx::WasmMakie.RecordingCtx, scene::Scene, plot::Makie.Scatter)
     attr = plot.attributes
     isempty(attr[:positions][]) && return
@@ -123,6 +135,11 @@ function draw_atomic(rctx::WasmMakie.RecordingCtx, scene::Scene, plot::Makie.Sca
     sm = attr[:size_model][]
     cam = (resolution = attr[:resolution][], projectionview = attr[:projectionview][],
            eye_to_clip = attr[:eye_to_clip][], view = attr[:cam_view][])
+
+    # image markers: load the pixel buffer ONCE per batch — upstream creates
+    # a single marker_surf reused at every position (scatter.jl:437)
+    shared_image_marker = marker isa AbstractMatrix{<:Makie.Colorant}
+    shared_image_marker && _load_marker_image!(rctx, marker)
 
     for i in eachindex(positions)
         position = positions[i]
@@ -170,6 +187,13 @@ function draw_atomic(rctx::WasmMakie.RecordingCtx, scene::Scene, plot::Makie.Sca
                 x - Float64(char_offset[1]), y - Float64(char_offset[2]),
                 m11, m21, m12, m22, codes, coords,
                 fr, fg, fb, fa, sr, sg, sb, sa, swidth)
+        elseif m isa AbstractMatrix{<:Makie.Colorant}
+            # image marker (CairoMakie draw_marker ::Matrix{<:Colorant}):
+            # the shared batch buffer is loaded before the loop; only
+            # per-position marker vectors (rare) reload here
+            shared_image_marker || _load_marker_image!(rctx, m)
+            WasmMakie.draw_marker_image!(rctx, x, y, m11, m21, m12, m22,
+                Int64(size(m, 2)), Int64(size(m, 1)))
         else
             error("CanvasMakie: marker $(typeof(m)) not implemented yet")
         end

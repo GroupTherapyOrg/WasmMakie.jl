@@ -92,9 +92,14 @@ end
 # ── draw_poly methods (translated, same argument shapes as upstream) ─────
 function draw_poly(rctx::WasmMakie.RecordingCtx, scene::Scene, poly, points::Vector{<:Makie.Point2})
     strokestyle, miter_limit, joinstyle, linecap = _poly_style(poly)
+    color = _poly_color(poly.color[], poly)
+    # upstream overrides.jl:121 — the typed single-ring path takes only
+    # SCALAR Colorant fills; per-vertex color vectors fall back to
+    # draw_poly_as_mesh (Gouraud mesh child + outline children)
+    color isa Makie.Colorant || return draw_poly_as_mesh(rctx, scene, poly)
     projected = _project_poly_points(scene, poly, poly.space[], points, poly.model[])
     return _draw_poly_ring!(rctx, scene, poly, [projected],
-        _poly_color(poly.color[], poly), _poly_color(poly.strokecolor[], poly),
+        color, _poly_color(poly.strokecolor[], poly),
         poly.strokewidth[], strokestyle, miter_limit, joinstyle, linecap)
 end
 
