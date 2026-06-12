@@ -22,10 +22,13 @@ jobs:
           path: WasmMakie.jl
 
       # the test env's [sources] points at ../../WasmTarget.jl — a sibling
-      # checkout, exactly like local development
+      # checkout, exactly like local development. Pinned to the active
+      # bugsmash branch (local dev runs against it; main's codegen traps the
+      # W-005 bar differential) — flip back to main once it merges.
       - uses: actions/checkout@v4
         with:
           repository: GroupTherapyOrg/WasmTarget.jl
+          ref: bugsmash-post-0.3.1
           path: WasmTarget.jl
 
       - uses: julia-actions/setup-julia@v2
