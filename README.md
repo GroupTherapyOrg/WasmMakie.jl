@@ -106,6 +106,14 @@ so this gallery only grows. Regenerate with
 | **band**<br><img src="assets/gallery/band.png" width="260"> | **density**<br><img src="assets/gallery/density.png" width="260"> |  |
 <!-- GALLERY:END -->
 
+## Backend conformance
+
+CanvasMakie (the true-Makie-backend twin in this repo) is audited against
+Makie's backend interface with cross-backend reference scores — see
+[CanvasMakie/CONFORMANCE.md](CanvasMakie/CONFORMANCE.md). Current 2D
+reference pass rate: **149/166 (89.8%)** against the CairoMakie reference
+set.
+
 ## Status
 
 Pre-alpha, under active construction. The build plan and story ledger live in the parent
