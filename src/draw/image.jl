@@ -16,6 +16,32 @@ blit exactly like CairoMakie's negative Cairo scale.
 function draw_image_scaled!(ctx, pixels::Vector{NTuple{4,Float64}}, ni::Int64, nj::Int64,
                             x::Float64, y::Float64, w::Float64, h::Float64,
                             interpolate::Bool)
+    if interpolate
+        # EXTEND_PAD equivalent (the Cairo fast path clips the pattern to the
+        # exact rect with pattern_set_extend(PAD)): pad the buffer with a
+        # replicated edge-texel ring, blit one texel BEYOND the rect, clip to
+        # the rect — bilinear edges sample the padding, never transparency
+        # (an unpadded blit fades every edge inward by half a texel)
+        img_buf_new(ctx, ni + 2, nj + 2)
+        for j in 0:(nj + 1)
+            base = (clamp(j, 1, nj) - 1) * ni
+            for i in 0:(ni + 1)
+                r, g, b, a = pixels[base + clamp(i, 1, ni)]
+                img_buf_push_rgba(ctx, round(Int64, 255.0 * r), round(Int64, 255.0 * g),
+                                  round(Int64, 255.0 * b), round(Int64, 255.0 * a))
+            end
+        end
+        set_image_smoothing(ctx, Int64(1))
+        save(ctx)
+        begin_path(ctx)
+        rect(ctx, min(x, x + w), min(y, y + h), abs(w), abs(h))
+        clip_nonzero(ctx)
+        translate(ctx, x, y)
+        scale_xy(ctx, w / ni, h / nj)
+        draw_image_buf(ctx, -1.0, -1.0, Float64(ni + 2), Float64(nj + 2))
+        restore(ctx)
+        return nothing
+    end
     img_buf_new(ctx, ni, nj)
     for j in 1:nj
         base = (j - 1) * ni
@@ -25,7 +51,7 @@ function draw_image_scaled!(ctx, pixels::Vector{NTuple{4,Float64}}, ni::Int64, n
                               round(Int64, 255.0 * b), round(Int64, 255.0 * a))
         end
     end
-    set_image_smoothing(ctx, interpolate ? Int64(1) : Int64(0))
+    set_image_smoothing(ctx, Int64(0))
     save(ctx)
     translate(ctx, x, y)
     scale_xy(ctx, w / ni, h / nj)

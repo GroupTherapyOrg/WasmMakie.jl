@@ -14,8 +14,8 @@ recorded	0.026	Button - Slider - Toggle - Textbox
 recorded	0.0249	Legend overrides	
 recorded	0.0153	Categorical Colorbar with nan_color	
 recorded	0.0139	Axis limits with translation, scaling and transform_func	
-recorded	0.013	datashader	
 recorded	0.013	Colorbar mapping to contourf	
+recorded	0.0122	datashader	
 recorded	0.0106	Legend draw order	
 recorded	0.0104	Axis yticksmirrored	
 recorded	0.0087	Axis xticksmirrored	
