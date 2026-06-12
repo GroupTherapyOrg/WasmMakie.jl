@@ -159,7 +159,12 @@ Base.@constprop :none function optimize_ticks_typed(
     S_best = Vector{F}(undef, k_max)
     len_S_best = length(S_best)
 
-    S = Vector{F}(undef, (extend_ticks ? 4 : 2) * k_max)
+    # WASM-DIVERGENCE (upstream bug, PlotUtils ticks.jl): upstream sizes S
+    # at 4k_max, but the k loop reaches 2k_max and the extend_ticks branch
+    # writes 3k slots — up to 6k_max. Upstream's @inbounds silently writes
+    # out of bounds (results unaffected: reads stay ≤ 2k_max); WasmGC
+    # array.set traps on it, and --check-bounds=yes throws. Size correctly.
+    S = Vector{F}(undef, (extend_ticks ? 6 : 2) * k_max)
 
     @inbounds begin
         while 2k_max * base_float^(z + 1) > xspan

@@ -35,9 +35,14 @@ end
     # process pipe segfaults Julia 1.12's GC (jl_gc_small_alloc during
     # StringVector growth) depending on heap state — deterministically on
     # the Linux CI runners and in this standalone file locally
+    # --check-bounds=auto (last flag wins over whatever julia_cmd inherited):
+    # under Pkg.test, julia_cmd carries --check-bounds=yes, which exposes a
+    # latent @inbounds OOB in PlotUtils' own extend_ticks path (S-fill loop,
+    # ticks.jl:265 in 1.4.3/1.4.4) and kills the oracle. The oracle must
+    # measure PlotUtils as users run it — default bounds elision.
     oracle = mktempdir() do dir
         out = joinpath(dir, "oracle.txt")
-        run(pipeline(`$jlcmd --project=$proj --startup-file=no -e $script`; stdout=out))
+        run(pipeline(`$jlcmd --check-bounds=auto --project=$proj --startup-file=no -e $script`; stdout=out))
         readlines(out)
     end
     @test length(oracle) == length(cases)

@@ -126,8 +126,14 @@ const CANVAS_OPS = CanvasOp[
         "(r, g, b, a) => { S.img[S.imgI++] = Number(r); S.img[S.imgI++] = Number(g); S.img[S.imgI++] = Number(b); S.img[S.imgI++] = Number(a); return 0n; }"),
     CanvasOp(:put_image_buf, [:x=>F, :y=>F], I,
         "(x, y) => { ctx.putImageData(new ImageData(S.img, S.imgW, S.imgH), x, y); return 0n; }"),
+    # Smoothing-off blits resample with Cairo's FILTER_NEAREST rule (dest
+    # pixel center -> floor(src)) BEFORE drawImage: engines round
+    # nearest-neighbor differently at fractional scales (Chromium
+    # row-misaligns vs the CairoMakie reference renders). The pre-scaled
+    # buffer is at device resolution (transform-aware), so the residual
+    # drawImage scale is ~1:1 in every engine.
     CanvasOp(:draw_image_buf, [:x=>F, :y=>F, :w=>F, :h=>F], I,
-        "(x, y, w, h) => { const oc = new OffscreenCanvas(S.imgW, S.imgH); oc.getContext('2d').putImageData(new ImageData(S.img, S.imgW, S.imgH), 0, 0); ctx.drawImage(oc, x, y, w, h); return 0n; }"),
+        "(x, y, w, h) => { let img = S.img, iw = S.imgW, ih = S.imgH; if (!ctx.imageSmoothingEnabled) { const m = ctx.getTransform(); const dw = Math.max(1, Math.round(Math.abs(w) * Math.hypot(m.a, m.b))), dh = Math.max(1, Math.round(Math.abs(h) * Math.hypot(m.c, m.d))); if (dw !== iw || dh !== ih) { const out = new Uint8ClampedArray(dw * dh * 4); for (let j = 0; j < dh; j++) { const sj = Math.min(ih - 1, Math.floor((j + 0.5) * ih / dh)); for (let i = 0; i < dw; i++) { const si = Math.min(iw - 1, Math.floor((i + 0.5) * iw / dw)); const o = (j * dw + i) * 4, s = (sj * iw + si) * 4; out[o] = img[s]; out[o+1] = img[s+1]; out[o+2] = img[s+2]; out[o+3] = img[s+3]; } } img = out; iw = dw; ih = dh; } } const oc = new OffscreenCanvas(iw, ih); oc.getContext('2d').putImageData(new ImageData(img, iw, ih), 0, 0); ctx.drawImage(oc, x, y, w, h); return 0n; }"),
     CanvasOp(:set_image_smoothing, [:on=>I], I,
         "(on) => { ctx.imageSmoothingEnabled = on !== 0n; return 0n; }"),
 
