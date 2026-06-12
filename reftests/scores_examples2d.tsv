@@ -1,14 +1,12 @@
 # status	score	title	detail
 error	-	Pie with Segment-specific Radius	CanvasMakie: pattern fills on poly not implemented yet (plan R-005)
-recorded	0.1584	quiver	
 recorded	0.0973	Triplot with nonlinear transformation	
 recorded	0.0685	Transformed 2D Arrows	
 recorded	0.0555	arrows2d z-order	
-recorded	0.0522	Band with NaN	
 recorded	0.052	RGB heatmap, heatmap + image overlap	
 recorded	0.0518	Voronoiplot with a nonlinear transform	
+recorded	0.0504	quiver	
 recorded	0.0496	Array of Images Scatter	
-recorded	0.0479	arrows2d alignment	
 recorded	0.0465	LaTeXStrings linesegment offsets	
 recorded	0.0452	Standard deviation band	
 recorded	0.0439	poly and colormap	
@@ -17,6 +15,7 @@ recorded	0.0429	series
 recorded	0.0419	Triplot of a constrained triangulation with holes and a custom bounding box	
 recorded	0.0396	Pie Position	
 recorded	0.0396	Tooltip	
+recorded	0.0352	arrows2d alignment	
 recorded	0.0346	annotation manual	
 recorded	0.0343	heatmap_interpolation	
 recorded	0.0342	Scalar colors from colormaps	
@@ -88,6 +87,7 @@ recorded	0.0101	filled contour 2d with curvilinear grid
 recorded	0.01	waterfall	
 recorded	0.01	qqnorm	
 recorded	0.0099	hexbin colorrange highclip lowclip	
+recorded	0.0097	Band with NaN	
 recorded	0.0093	contour with single alpha color	
 recorded	0.0091	Voronoiplot for a centroidal tessellation with an automatic colormap	
 skipped	-	Arrows on hemisphere	skip list
@@ -124,4 +124,4 @@ skipped	-	arrows3d updates	skip pattern: arrows3d
 skipped	-	Transformed rotations	skip pattern: contour3d
 unsupported	-	Streamplot animation	result type VideoStream (video/steps?)
 unsupported	-	Line changing colour	result type VideoStream (video/steps?)
-# REFPASS passed=83/93 scored=90 recorded=90 errored=1 unsupported=2 rate=0.892
+# REFPASS passed=84/93 scored=90 recorded=90 errored=1 unsupported=2 rate=0.903

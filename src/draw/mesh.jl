@@ -127,14 +127,29 @@ end
 """
     draw_mesh!(ctx, fx, fy, fz, fr, fg, fb, fa, faces, x, y, w, h)
 
-Rasterize the mesh (pixel-space vertices relative to the (x, y) origin) at
-(w × h) and blit it through the buffered-image protocol.
+Draw the mesh (pixel-space vertices relative to the (x, y) origin).
+UNIFORM-color meshes (bands, violins, solid arrow groups) become ONE canvas
+path filled once: native antialiasing, no shared-edge seams, and a stream of
+3 coords per vertex instead of w·h pixels — Cairo renders solid geometry
+through exact-coverage paths the same way. Gouraud/multi-color meshes go
+through the rasterizer + buffered-image blit.
 """
 function draw_mesh!(ctx, fx::Vector{Float64}, fy::Vector{Float64}, fz::Vector{Float64},
                     fr::Vector{Float64}, fg::Vector{Float64}, fb::Vector{Float64},
                     fa::Vector{Float64}, faces::Vector{Int64},
                     x::Float64, y::Float64, w::Int64, h::Int64)
     (w <= 0 || h <= 0) && return nothing
+    uniform = true
+    for i in 2:length(fr)
+        if fr[i] != fr[1] || fg[i] != fg[1] || fb[i] != fb[1] || fa[i] != fa[1]
+            uniform = false
+            break
+        end
+    end
+    if uniform && length(fr) > 0
+        draw_mesh_solid!(ctx, fx, fy, faces, x, y, fr[1], fg[1], fb[1], fa[1])
+        return nothing
+    end
     pix = Vector{NTuple{4,Float64}}(undef, w * h)
     depthbuf = Vector{Float64}(undef, w * h)
     for k in 1:(w * h)
@@ -145,5 +160,28 @@ function draw_mesh!(ctx, fx::Vector{Float64}, fy::Vector{Float64}, fz::Vector{Fl
     # buffered image is column-major flat (i + (j-1)*ni) with ni = w — the
     # rasterizer's row-major x + (y-1)*w is the SAME linear layout
     draw_image_scaled!(ctx, pix, w, h, x, y, Float64(w), Float64(h), false)
+    return nothing
+end
+
+"One path, one fill: every finite face as a closed subpath, nonzero winding."
+function draw_mesh_solid!(ctx, fx::Vector{Float64}, fy::Vector{Float64},
+                          faces::Vector{Int64}, x::Float64, y::Float64,
+                          r::Float64, g::Float64, b::Float64, a::Float64)
+    a <= 0.0 && return nothing
+    begin_path(ctx)
+    nfaces = div(length(faces), 3)
+    for fi in 1:nfaces
+        i1 = faces[3 * fi - 2]
+        i2 = faces[3 * fi - 1]
+        i3 = faces[3 * fi]
+        (isfinite(fx[i1]) && isfinite(fy[i1]) && isfinite(fx[i2]) &&
+         isfinite(fy[i2]) && isfinite(fx[i3]) && isfinite(fy[i3])) || continue
+        move_to(ctx, x + fx[i1], y + fy[i1])
+        line_to(ctx, x + fx[i2], y + fy[i2])
+        line_to(ctx, x + fx[i3], y + fy[i3])
+        close_path(ctx)
+    end
+    set_fill_rgba(ctx, 255.0 * r, 255.0 * g, 255.0 * b, a)
+    fill_nonzero(ctx)
     return nothing
 end
