@@ -2,10 +2,10 @@
 error	-	Arrows on hemisphere	CanvasMakie: 3D mesh shading not supported (2D scope, R-006)
 error	-	colored triangle (mesh, poly, 3D) + poly stroke	CanvasMakie: 3D mesh shading not supported (2D scope, R-006)
 error	-	Pie with Segment-specific Radius	CanvasMakie: pattern fills on poly not implemented yet (plan R-005)
-recorded	0.3311	arrows2d z-order	
 recorded	0.1584	quiver	
 recorded	0.0973	Triplot with nonlinear transformation	
 recorded	0.0685	Transformed 2D Arrows	
+recorded	0.0555	arrows2d z-order	
 recorded	0.0522	Band with NaN	
 recorded	0.052	RGB heatmap, heatmap + image overlap	
 recorded	0.0518	Voronoiplot with a nonlinear transform	
