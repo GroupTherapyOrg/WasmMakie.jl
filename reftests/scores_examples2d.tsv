@@ -1,25 +1,22 @@
 # status	score	title	detail
-error	-	poly and colormap	MethodError: no method matching red(::Vector{ColorTypes.RGBA{Float32}}) The function `red` exists, but no method is defined for this combination of argument types.  Closest candidates are:   red(!Matched::ColorTypes.RGB24)    @ ColorTypes ~/.julia/packages/ColorTypes/L7biZ/src/traits.jl:17   red(!Ma
 error	-	Arrows on hemisphere	CanvasMakie: 3D mesh shading not supported (2D scope, R-006)
-error	-	colored triangle (mesh, poly, 3D) + poly stroke	MethodError: no method matching red(::Vector{ColorTypes.RGBA{Float32}}) The function `red` exists, but no method is defined for this combination of argument types.  Closest candidates are:   red(!Matched::ColorTypes.RGB24)    @ ColorTypes ~/.julia/packages/ColorTypes/L7biZ/src/traits.jl:17   red(!Ma
-error	-	Band with NaN	InexactError: Int64(NaN)
+error	-	colored triangle (mesh, poly, 3D) + poly stroke	CanvasMakie: 3D mesh shading not supported (2D scope, R-006)
 error	-	Pie with Segment-specific Radius	CanvasMakie: pattern fills on poly not implemented yet (plan R-005)
-error	-	Array of Images Scatter	CanvasMakie: marker Matrix{ColorTypes.RGBA{FixedPointNumbers.N0f8}} not implemented yet
-error	-	Triplot with points, ghost edges, and convex hull	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	Triplot of a constrained triangulation with holes and a custom bounding box	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	Triplot with nonlinear transformation	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	Triplot after adding points and make sure the representative_point_list is correctly updated	CanvasMakie: draw_atomic not implemented yet for Plot
-error	-	Triplot Showing ghost edges for a triangulation with disjoint boundaries	CanvasMakie: draw_atomic not implemented yet for Plot
-recorded	0.3881	Standard deviation band	
-recorded	0.1793	arrows2d z-order	
-recorded	0.1194	quiver	
-recorded	0.0673	Transformed 2D Arrows	
+recorded	0.3311	arrows2d z-order	
+recorded	0.1584	quiver	
+recorded	0.0973	Triplot with nonlinear transformation	
+recorded	0.0685	Transformed 2D Arrows	
+recorded	0.0522	Band with NaN	
 recorded	0.052	RGB heatmap, heatmap + image overlap	
 recorded	0.0518	Voronoiplot with a nonlinear transform	
+recorded	0.0496	Array of Images Scatter	
+recorded	0.0479	arrows2d alignment	
 recorded	0.0465	LaTeXStrings linesegment offsets	
-recorded	0.0462	arrows2d alignment	
+recorded	0.0452	Standard deviation band	
+recorded	0.0439	poly and colormap	
 recorded	0.0435	colorscale (lines)	
 recorded	0.0429	series	
+recorded	0.0419	Triplot of a constrained triangulation with holes and a custom bounding box	
 recorded	0.0396	Pie Position	
 recorded	0.0396	Tooltip	
 recorded	0.0346	annotation manual	
@@ -27,8 +24,10 @@ recorded	0.0343	heatmap_interpolation
 recorded	0.0342	Scalar colors from colormaps	
 recorded	0.033	Heatmap Shader	
 recorded	0.0309	hexbin scale	
+recorded	0.0308	Triplot Showing ghost edges for a triangulation with disjoint boundaries	
 recorded	0.0302	heatmap and image colormap interpolation	
 recorded	0.0296	Histogram	
+recorded	0.0279	Triplot after adding points and make sure the representative_point_list is correctly updated	
 recorded	0.0263	Polygons	
 recorded	0.0259	annotation pointcloud	
 recorded	0.0257	contour labels with transform_func	
@@ -58,6 +57,7 @@ recorded	0.0164	qqplot
 recorded	0.0163	Barplot label positions	
 recorded	0.016	stairs	
 recorded	0.0154	streamplot	
+recorded	0.0151	Triplot with points, ghost edges, and convex hull	
 recorded	0.015	Datashader AggCount	
 recorded	0.0149	Datashader AggMean	
 recorded	0.0149	lines (some with NaNs) with array colors	
@@ -124,4 +124,4 @@ skipped	-	arrows3d updates	skip pattern: arrows3d
 skipped	-	Transformed rotations	skip pattern: contour3d
 unsupported	-	Streamplot animation	result type VideoStream (video/steps?)
 unsupported	-	Line changing colour	result type VideoStream (video/steps?)
-# REFPASS passed=76/95 scored=82 recorded=82 errored=11 unsupported=2 rate=0.8
+# REFPASS passed=83/95 scored=90 recorded=90 errored=3 unsupported=2 rate=0.874

@@ -1,7 +1,7 @@
 # status	score	title	detail
 error	-	Textbox	UndefVarError: `click` not defined in `Main.RefSuite` Suggestion: check for spelling errors or missing imports.
-recorded	0.251	Label with text wrapping	
 recorded	0.0609	Latex labels after the fact	
+recorded	0.0584	Label with text wrapping	
 recorded	0.0442	Axis titles and subtitles	
 recorded	0.035	Legend with scalar colors	
 recorded	0.035	Legend with scalar colors and alpha	

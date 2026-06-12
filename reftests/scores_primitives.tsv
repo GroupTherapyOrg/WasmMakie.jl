@@ -1,9 +1,8 @@
 # status	score	title	detail
-error	-	scatter Billboard and transform_marker for image markers	CanvasMakie: marker Matrix{ColorTypes.RGBA{FixedPointNumbers.N0f8}} not implemented yet
-error	-	scatter image markers	CanvasMakie: marker Matrix{ColorTypes.RGBA{FixedPointNumbers.N0f8}} not implemented yet
-error	-	scatter marker_offset 2D	CanvasMakie: marker Matrix{ColorTypes.RGB{Float32}} not implemented yet
-error	-	scatter marker_offset 2D with billboarded rotation	CanvasMakie: marker Matrix{ColorTypes.RGB{Float32}} not implemented yet
 recorded	0.1562	Subpixel Scatter	
+recorded	0.1305	scatter marker_offset 2D with billboarded rotation	
+recorded	0.1286	scatter marker_offset 2D	
+recorded	0.0782	scatter Billboard and transform_marker for image markers	
 recorded	0.0477	scatter Billboard and transform_marker for BezierPath markers	
 recorded	0.0446	scatter Billboard and transform_marker for Char markers	
 recorded	0.0349	BezierPath marker stroke	
@@ -11,6 +10,7 @@ recorded	0.0316	scatter Billboard and transform_marker for Circle markers
 recorded	0.0308	barplot with TeX-ed labels	
 recorded	0.0296	scatter Billboard and transform_marker for Rect markers	
 recorded	0.0285	scatter with stroke	
+recorded	0.0216	scatter image markers	
 recorded	0.0214	lines and linestyles	
 recorded	0.019	complex_bezier_markers	
 recorded	0.0178	marke glyph alignment	
@@ -45,4 +45,4 @@ skipped	-	meshscatter + scatter marker conversions with model	skip pattern: mesh
 skipped	-	scatter marker_offset 3D with rotation	skip pattern: LScene
 skipped	-	transformed surface	skip pattern: meshscatter
 unsupported	-	scatter with glow	no reference image for this backend/version
-# REFPASS passed=24/30 scored=25 recorded=25 errored=4 unsupported=1 rate=0.8
+# REFPASS passed=25/30 scored=29 recorded=29 errored=0 unsupported=1 rate=0.833

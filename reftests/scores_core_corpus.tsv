@@ -5,12 +5,11 @@
 0.2335	recipes: crossbar + waterfall
 0.233	core: titles and labels
 0.2174	recipes: hist 8 bins
-0.2007	recipes: density
-0.1937	recipes: band
 0.1736	legend: axislegend rt
 0.1547	axis: minorgrid + bold title + subtitle
 0.1474	recipes: violin
 0.1466	core: image primaries
+0.142	recipes: density
 0.1381	recipes: boxplot
 0.1371	recipes: pie
 0.1344	recipes: contour
@@ -27,6 +26,7 @@
 0.1179	recipes: stairs pre
 0.1179	recipes: series
 0.1159	recipes: wave-1 annotations
+0.1007	recipes: band
 0.0902	core: heatmap viridis
 0.0902	colorbar: heatmap-linked vertical
 0.076	core: barplot negative
