@@ -47,7 +47,7 @@ play against the shared reference set.
 | Backend | 2D reference pass rate | Notes |
 |---|---|---|
 | CairoMakie | reference (identity) | the recorded set |
-| **CanvasMakie** | **149/166 (89.8%)** | short_tests 19/20 · primitives 25/30 · makielayout 21/23 · examples2d 84/93; 2D scope (3D/volume/video skipped, denominator excludes them) |
+| **CanvasMakie** | **150/166 (90.4%)** | short_tests 19/20 · primitives 25/30 · makielayout 21/23 · examples2d 85/93; 2D scope (3D/volume/video skipped, denominator excludes them) |
 
 Remaining fails are antialiasing-engine deltas (dense thin geometry) and
 two reference-artifact cases — the per-test breakdown with scores lives in

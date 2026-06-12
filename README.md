@@ -115,7 +115,7 @@ so this gallery only grows. Regenerate with
 CanvasMakie (the true-Makie-backend twin in this repo) is audited against
 Makie's backend interface with cross-backend reference scores — see
 [CanvasMakie/CONFORMANCE.md](CanvasMakie/CONFORMANCE.md). Current 2D
-reference pass rate: **149/166 (89.8%)** against the CairoMakie reference
+reference pass rate: **150/166 (90.4%)** against the CairoMakie reference
 set.
 
 ## Status
