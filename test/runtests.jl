@@ -1159,7 +1159,11 @@ end
     wasm_json = strip(read(`node $checker $wasm_path $glue_path w002`, String))
 
     # THE GATE: normalized streams must be EQUAL (wasm_diffpass)
-    norm(j) = strip(read(`node -e "console.log(JSON.stringify(JSON.parse(process.argv[1])))" $j`, String))
+    norm(j) = mktempdir() do d                       # via a FILE: Linux caps a
+        f = joinpath(d, "s.json")                    # single argv at 128KB and
+        write(f, j)                                  # image/heatmap streams exceed it
+        strip(read(`node -e "console.log(JSON.stringify(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))))" $f`, String))
+    end
     @test norm(host_json) == norm(wasm_json)
 
     # and the module draws real pixels in the browser
@@ -1288,7 +1292,11 @@ function w005_grid()
 end
 
 @testset "per-plot-type wasm differentials (W-005: scatter, bar, heatmap, image, grid)" begin
-    norm(j) = strip(read(`node -e "console.log(JSON.stringify(JSON.parse(process.argv[1])))" $j`, String))
+    norm(j) = mktempdir() do d                       # via a FILE: Linux caps a
+        f = joinpath(d, "s.json")                    # single argv at 128KB and
+        write(f, j)                                  # image/heatmap streams exceed it
+        strip(read(`node -e "console.log(JSON.stringify(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))))" $f`, String))
+    end
     checker = joinpath(@__DIR__, "wasm_stream_check.js")
     dir = mktempdir()
     glue_path = joinpath(dir, "glue.js"); write(glue_path, js_glue())
