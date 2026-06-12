@@ -1,6 +1,4 @@
 # status	score	title	detail
-error	-	Arrows on hemisphere	CanvasMakie: 3D mesh shading not supported (2D scope, R-006)
-error	-	colored triangle (mesh, poly, 3D) + poly stroke	CanvasMakie: 3D mesh shading not supported (2D scope, R-006)
 error	-	Pie with Segment-specific Radius	CanvasMakie: pattern fills on poly not implemented yet (plan R-005)
 recorded	0.1584	quiver	
 recorded	0.0973	Triplot with nonlinear transformation	
@@ -92,7 +90,9 @@ recorded	0.01	qqnorm
 recorded	0.0099	hexbin colorrange highclip lowclip	
 recorded	0.0093	contour with single alpha color	
 recorded	0.0091	Voronoiplot for a centroidal tessellation with an automatic colormap	
+skipped	-	Arrows on hemisphere	skip list
 skipped	-	FEM poly and mesh	skip pattern: wireframe
+skipped	-	colored triangle (mesh, poly, 3D) + poly stroke	skip list
 skipped	-	Transforming lines	skip pattern: Stepper
 skipped	-	Axes label rotations	skip pattern: Stepper
 skipped	-	Colorbar label rotations	skip pattern: Stepper
@@ -124,4 +124,4 @@ skipped	-	arrows3d updates	skip pattern: arrows3d
 skipped	-	Transformed rotations	skip pattern: contour3d
 unsupported	-	Streamplot animation	result type VideoStream (video/steps?)
 unsupported	-	Line changing colour	result type VideoStream (video/steps?)
-# REFPASS passed=83/95 scored=90 recorded=90 errored=3 unsupported=2 rate=0.874
+# REFPASS passed=83/93 scored=90 recorded=90 errored=1 unsupported=2 rate=0.892

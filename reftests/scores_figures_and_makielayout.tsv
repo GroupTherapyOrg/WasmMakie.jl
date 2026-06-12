@@ -1,5 +1,4 @@
 # status	score	title	detail
-error	-	Textbox	UndefVarError: `click` not defined in `Main.RefSuite` Suggestion: check for spelling errors or missing imports.
 recorded	0.0609	Latex labels after the fact	
 recorded	0.0584	Label with text wrapping	
 recorded	0.0442	Axis titles and subtitles	
@@ -34,4 +33,5 @@ skipped	-	Axis3 fullbox	skip pattern: Axis3
 skipped	-	Axis3 viewmodes, xreversed, aspect, perspectiveness	skip pattern: Axis3
 skipped	-	Axis3 clipping	skip pattern: meshscatter
 skipped	-	Colorbar for recipes	skip pattern: volume
-# REFPASS passed=21/24 scored=23 recorded=23 errored=1 unsupported=0 rate=0.875
+skipped	-	Textbox	skip list
+# REFPASS passed=21/23 scored=23 recorded=23 errored=0 unsupported=0 rate=0.913

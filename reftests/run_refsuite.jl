@@ -24,13 +24,24 @@ RefSuite.SKIP_PATTERNS[] = String[
     "arrows3d", "LScene", "matcap", "uv_mesh", "Stepper",
 ]
 
+# per-title skips (pattern matching would also catch passing tests that
+# merely MENTION these): the first needs widget-interactivity simulation in
+# the harness (`click` — not a rendering gap); the other two render 3D
+# meshes (draw_mesh3D shading), same out-of-2D-scope family as the pattern
+# skips above. All three leave the denominator like every other skip.
+const SKIP_TITLES_2D = String[
+    "Textbox",
+    "Arrows on hemisphere",
+    "colored triangle (mesh, poly, 3D) + poly stroke",
+]
+
 for name in files
     file = joinpath(@__DIR__, "vendor_upstream", "tests", name * ".jl")
     isfile(file) || error("no vendored test file: $file")
     rec = joinpath(@__DIR__, "recorded", name)
     rm(rec; recursive = true, force = true)
 
-    results = RefSuite.run_file(file; recording_dir = rec)
+    results = RefSuite.run_file(file; recording_dir = rec, skip = SKIP_TITLES_2D)
 
     scores = Dict{String,Float64}()
     for r in results
