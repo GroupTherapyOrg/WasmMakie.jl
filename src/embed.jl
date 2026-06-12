@@ -51,10 +51,12 @@ function html_snippet(fig::Figure; id::AbstractString = _next_embed_id(),
     $(js_glue())
     $(replay_js())
     const __canvas = document.getElementById("$(id)");
-    canvas2d_load_fonts($(faces)).then(function () {
+    var __draw = function () {
       replayCommands($(to_json(r)), __canvas, canvas2d_imports, $(js_specs()));
       __canvas.dataset.wasmmakieDone = "1";   // hosts/tests can await this
-    });
+    };
+    // fonts must never block drawing (text falls back to the family stack)
+    try { canvas2d_load_fonts($(faces)).then(__draw, __draw); } catch (e) { __draw(); }
     })();
     </script>
     </div>
@@ -84,7 +86,11 @@ function wasm_html_snippet(wasm_bytes::Vector{UInt8}, export_name::AbstractStrin
     $(js_glue())
     const __canvas = document.getElementById("$(id)");
     const __bytes = Uint8Array.from(atob("$(b64)"), function (c) { return c.charCodeAt(0); });
-    canvas2d_load_fonts($(faces)).then(function () {
+    var __fonts = (function () {
+      try { return canvas2d_load_fonts($(faces)).catch(function () {}); }
+      catch (e) { return Promise.resolve(); }
+    })();
+    __fonts.then(function () {
       return WebAssembly.instantiate(__bytes, {
         canvas2d: canvas2d_imports(__canvas),
         Math: { pow: Math.pow },

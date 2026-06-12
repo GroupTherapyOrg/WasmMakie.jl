@@ -1760,7 +1760,7 @@ end
 
 @testset "WasmMakie scaffold" begin
     @test WasmMakie isa Module
-    @test pkgversion(WasmMakie) == v"0.0.1"
+    @test pkgversion(WasmMakie) isa VersionNumber  # release-please owns the number
     # Host-agnostic guarantee: no web-framework or notebook-system reference
     # may ever appear in src/. This test is the enforcement.
     src_dir = joinpath(dirname(@__DIR__), "src")

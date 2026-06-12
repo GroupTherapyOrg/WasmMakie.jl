@@ -232,10 +232,16 @@ $entries
 }
 async function canvas2d_load_fonts(faces) {
   if (typeof document === 'undefined' || !document.fonts) return false;
-  await Promise.all(faces.map(f =>
-    new FontFace(f.family, 'url(' + f.url + ')',
-                 { weight: String(f.weight), style: f.style })
-      .load().then(face => { document.fonts.add(face); })));
+  // allSettled + per-face try: a strict font sanitizer (Firefox warns and
+  // can reject DejaVu glyf bboxes) must NEVER block drawing — text falls
+  // back to the next family in the stack instead
+  await Promise.allSettled(faces.map(f => {
+    try {
+      return new FontFace(f.family, 'url(' + f.url + ')',
+                          { weight: String(f.weight), style: f.style })
+        .load().then(face => { document.fonts.add(face); });
+    } catch (e) { return Promise.resolve(); }
+  }));
   return true;
 }
 """
