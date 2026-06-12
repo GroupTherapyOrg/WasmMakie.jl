@@ -13,11 +13,12 @@
 #     clamped to [0,1], multiplied): upstream jl_rasterizer is hard-edged,
 #     but the rendering ORACLE here is Cairo's antialiased mesh patterns —
 #     hard edges score outside the reference threshold on band tests
-#   - REPLACE compositing within a mesh (highest-coverage fragment wins)
-#     instead of standard_transparency blending: the buffer is per-mesh
-#     (non-premultiplied RGBA for the ImageData blit) and triangles tile —
-#     blending double-darkens translucent fills at shared edges/feathers,
-#     where Cairo composites the whole mesh pattern once
+#   - compositing replaces standard_transparency: the per-mesh buffer is
+#     non-premultiplied RGBA (ImageData blit); same-color fragments keep the
+#     higher coverage (surface continuation — shared-edge feathers must not
+#     double-cover translucent fills), different-color fragments source-over
+#     in painter's order (distinct surfaces in one mesh, e.g. arrow overlaps
+#     — Cairo composites successive patches the same way)
 
 @inline _edge_function(ax::Float64, ay::Float64, bx::Float64, by::Float64,
                        cx::Float64, cy::Float64) =
@@ -95,16 +96,27 @@ function rasterize_mesh!(pix::Vector{NTuple{4,Float64}}, depthbuf::Vector{Float6
                 sg = b1 * fg[i1] + b2 * fg[i2] + b3 * fg[i3]
                 sb = b1 * fb[i1] + b2 * fb[i2] + b3 * fb[i3]
                 sa = cov * (b1 * fa[i1] + b2 * fa[i2] + b3 * fa[i3])
-                # within one mesh the triangles tile without overlap — keep
-                # the highest-coverage fragment (REPLACE) instead of jl_
-                # rasterizer's standard_transparency blend: shared-edge
-                # pixels and outside feathers must not double-blend
-                # translucent fills (Cairo composites the whole mesh pattern
-                # ONCE); the buffer is per-mesh and the canvas blit applies
-                # source-over compositing against the scene
+                # Compositing (buffer is NON-premultiplied for the ImageData
+                # blit; the canvas applies source-over against the scene):
+                # same-color fragments are surface CONTINUATION — keep the
+                # higher coverage so shared-edge feathers never double-cover
+                # a translucent fill (Cairo composites each patch once);
+                # different-color fragments are distinct surfaces meeting in
+                # one mesh (e.g. overlapping arrows) — correct source-over
+                # in painter's order, like Cairo's successive patches.
                 dst = pix[k]
-                if sa >= dst[4]
-                    pix[k] = (sr, sg, sb, sa)
+                if abs(sr - dst[1]) < 0.004 && abs(sg - dst[2]) < 0.004 &&
+                   abs(sb - dst[3]) < 0.004
+                    sa > dst[4] && (pix[k] = (sr, sg, sb, sa))
+                else
+                    da = dst[4]
+                    outa = sa + da * (1.0 - sa)
+                    if outa > 0.0
+                        pix[k] = ((sa * sr + da * dst[1] * (1.0 - sa)) / outa,
+                                  (sa * sg + da * dst[2] * (1.0 - sa)) / outa,
+                                  (sa * sb + da * dst[3] * (1.0 - sa)) / outa,
+                                  outa)
+                    end
                 end
             end
         end
