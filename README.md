@@ -8,6 +8,10 @@ mapping, text layout, rendering) running as a WasmGC module in the browser, comp
 Julia by [WasmTarget.jl](https://github.com/GroupTherapyOrg/WasmTarget.jl). No Julia server,
 no precomputed state.
 
+**Docs: [grouptherapyorg.github.io/WasmMakie.jl](https://grouptherapyorg.github.io/WasmMakie.jl/)** —
+every plot on the site, including the live wasm dashboard and the 32-scene gallery, is rendered
+by WasmMakie itself.
+
 ## The acid test
 
 A plain HTML file with a `<canvas>`, the compiled wasm module, and the glue JS shows a plot.

@@ -1,0 +1,80 @@
+name: Build and Deploy Docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # docs/Project.toml [sources] points at SIBLING checkouts
+      # (../../Therapy.jl, ../../WasmTarget.jl) — replicate the local
+      # layout: everything checked out side by side under the workspace
+      - name: Checkout WasmMakie.jl
+        uses: actions/checkout@v4
+        with:
+          path: WasmMakie.jl
+
+      - name: Checkout Therapy.jl
+        uses: actions/checkout@v4
+        with:
+          repository: GroupTherapyOrg/Therapy.jl
+          path: Therapy.jl
+
+      - name: Checkout WasmTarget.jl
+        uses: actions/checkout@v4
+        with:
+          repository: GroupTherapyOrg/WasmTarget.jl
+          path: WasmTarget.jl
+
+      - name: Setup Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+
+      - uses: julia-actions/cache@v2
+
+      - name: Install dependencies
+        working-directory: WasmMakie.jl
+        run: |
+          julia --project=docs -e '
+            using Pkg
+            Pkg.Registry.add("General")
+            Pkg.resolve()
+            Pkg.instantiate()
+          '
+
+      - name: Build docs
+        working-directory: WasmMakie.jl
+        run: |
+          julia --project=docs --optimize=3 docs/app.jl build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: WasmMakie.jl/docs/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
