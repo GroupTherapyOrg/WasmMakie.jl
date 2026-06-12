@@ -50,11 +50,18 @@ jobs:
         working-directory: WasmMakie.jl
         run: julia --project=test -e 'import Pkg; Pkg.instantiate()'
 
-      # known flake: the FIRST suite run after a fresh precompile may
-      # segfault (exit 139) at the C-002 subprocess-oracle testset (Julia
-      # 1.12 GC + precompile state); a rerun is reliably green — retry once
+      # C-002 runs in its own process: inside the full suite, the parent-side
+      # subprocess IO trips a heap-state-dependent Julia 1.12 GC segfault
+      # (deterministic on the Linux runners) — a fresh process never
+      # accumulates the triggering state. See test/c002_parity.jl.
+      - name: C-002 parity oracle (isolated process)
+        working-directory: WasmMakie.jl
+        run: julia --project=test test/c002_parity.jl
+
       - name: Run tests (with one flake retry)
         working-directory: WasmMakie.jl
         shell: bash
+        env:
+          WASMMAKIE_SKIP_C002: '1'
         run: |
           julia --project=test test/runtests.jl || julia --project=test test/runtests.jl
