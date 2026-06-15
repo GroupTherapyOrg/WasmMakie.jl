@@ -7,6 +7,11 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+defaults:
+  run:
+    # bash on every OS (Git Bash on Windows) so the `||` retry and the
+    # single-quoted `julia -e` invocations behave identically everywhere.
+    shell: bash
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }}
@@ -15,17 +20,21 @@ jobs:
       fail-fast: false
       matrix:
         version: ['1.12']
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
         with:
           path: WasmMakie.jl
 
       # the test env's [sources] points at ../../WasmTarget.jl — a sibling
-      # checkout of WasmTarget main, exactly like local development
+      # checkout of WasmTarget, exactly like local development. The Int128
+      # struct-field codegen WasmMakie's E-001 wasm-acid kernel relies on lives
+      # on wt-pluto-codegen-campaign and is not yet merged to WasmTarget main —
+      # pin to that branch until it lands on main.
       - uses: actions/checkout@v4
         with:
           repository: GroupTherapyOrg/WasmTarget.jl
+          ref: wt-pluto-codegen-campaign
           path: WasmTarget.jl
 
       - uses: julia-actions/setup-julia@v2
@@ -39,9 +48,13 @@ jobs:
         with:
           node-version: '22'
 
-      # WasmTarget validates every emitted module through wasm-tools
+      # WasmTarget validates every emitted module through wasm-tools. Install the
+      # official prebuilt binary (no source build) — fast and reliable on all
+      # three OSes.
       - name: Install wasm-tools
-        run: cargo install wasm-tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-tools
 
       - name: Instantiate test environment
         working-directory: WasmMakie.jl
@@ -57,7 +70,6 @@ jobs:
 
       - name: Run tests (with one flake retry)
         working-directory: WasmMakie.jl
-        shell: bash
         env:
           WASMMAKIE_SKIP_C002: '1'
         run: |
