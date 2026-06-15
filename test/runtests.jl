@@ -236,8 +236,10 @@ import PNGFiles
     @test strip(read(joinpath(rec, "missing_files.txt"), String)) == "only_ref.png"
     @test strip(read(joinpath(rec, "new_files.txt"), String)) == "only_rec.png"
 
-    # the pinned reference tarball is fetchable (HEAD only — no download)
-    code = strip(read(`curl -sIL -o /dev/null -w "%{http_code}" $(RefScorer.refimages_url())`, String))
+    # the pinned reference tarball is fetchable (HEAD only — no download).
+    # NUL is Windows' null device; curl -o /dev/null errors (write error 23) there.
+    null_sink = Sys.iswindows() ? "NUL" : "/dev/null"
+    code = strip(read(`curl -sIL -o $null_sink -w "%{http_code}" $(RefScorer.refimages_url())`, String))
     @test code == "200"
 end
 
