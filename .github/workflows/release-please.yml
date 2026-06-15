@@ -57,35 +57,6 @@ jobs:
             --target-branch main \
             --config-file release-please-config.json \
             --manifest-file .release-please-manifest.json
-
-  # When (and only when) the release-please PR is merged, the step above tags vX.Y.Z on the release
-  # commit. Detect that tag and trigger registration to the General registry — the same
-  # `@JuliaRegistrator register` comment you'd post by hand. It must live in THIS workflow (not a
-  # separate `on: release` one): a release created by GITHUB_TOKEN can't trigger another workflow,
-  # but JuliaRegistrator is a GitHub App, so it still receives the commit-comment webhook here.
-  register-general:
-    name: Register new release to General
-    needs: release-please
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Detect a freshly-created release tag on HEAD
-        id: tag
-        run: |
-          git fetch --tags --force --quiet
-          TAG=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          if [ -n "$TAG" ]; then
-            echo "Release tag $TAG on $GITHUB_SHA — registering to General."
-          else
-            echo "No release tag on HEAD (this push didn't cut a release) — nothing to register."
-          fi
-
-      - name: Trigger JuliaRegistrator on the release commit
-        if: steps.tag.outputs.tag != ''
-        uses: peter-evans/commit-comment@v3
-        with:
-          body: "@JuliaRegistrator register"
+          # The github-release step also posts `@JuliaRegistrator register` (with release notes) on
+          # the release commit — the MilesCranmerBot/release-please fork has built-in Registrator
+          # support — so no separate registration job is needed.
