@@ -22,8 +22,16 @@ const wrapped = {};
 for (const k of Object.keys(base)) {
   wrapped[k] = (...args) => { stream.push({ op: k, args: args.map(a => typeof a === 'bigint' ? Number(a) : a) }); return base[k](...args); };
 }
+// WasmTarget modules import a js-string builtin (text → fromCharCodeArray) and
+// declare an `io` write bridge (unused by these kernels). Opt into the JS
+// String Builtins and stub io so instantiation succeeds.
+const io = new Proxy({}, { get: () => () => 0 });
 (async () => {
-  const { instance } = await WebAssembly.instantiate(fs.readFileSync(wasmPath), { canvas2d: wrapped, Math: { pow: Math.pow } });
+  const { instance } = await WebAssembly.instantiate(
+    fs.readFileSync(wasmPath),
+    { canvas2d: wrapped, Math: { pow: Math.pow }, io },
+    { builtins: ['js-string'] },
+  );
   try { instance.exports[exportName](); } catch (e) {
     console.error('TRAP after ' + stream.length + ' ops; last 5: ' + JSON.stringify(stream.slice(-5)));
     process.exit(1);

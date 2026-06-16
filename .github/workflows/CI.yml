@@ -43,9 +43,10 @@ jobs:
 
       - uses: julia-actions/cache@v2
 
-      # node 24: WebAssembly JS String Builtins (the `wasm:js-string` imports
-      # WasmTarget now emits) are enabled by default; node 22 needs a flag and
-      # errors with "Import module=\"wasm:js-string\": module is not an object".
+      # node 24: WasmTarget modules import the `wasm:js-string` builtin, which
+      # the test checkers opt into via the `{ builtins: ['js-string'] }`
+      # compileOptions on WebAssembly.instantiate — supported here, matching the
+      # node 24/25 used in local development.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
