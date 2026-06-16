@@ -28,10 +28,13 @@ const factory = new Function(glueSrc + '\nreturn canvas2d_imports;')();
   const bytes = fs.readFileSync(wasmPath);
   let instance;
   try {
+    // js-string builtin (text) + io write bridge are part of WasmTarget's
+    // import surface; opt into the builtins and stub io so any module loads.
     ({ instance } = await WebAssembly.instantiate(bytes, {
       canvas2d: factory(loggingCtx),
       Math: { pow: Math.pow },
-    }));
+      io: new Proxy({}, { get: () => () => 0 }),
+    }, { builtins: ['js-string'] }));
   } catch (e) {
     console.error('INSTANTIATE FAIL: ' + e.message);
     process.exit(1);

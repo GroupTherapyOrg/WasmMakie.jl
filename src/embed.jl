@@ -94,7 +94,8 @@ function wasm_html_snippet(wasm_bytes::Vector{UInt8}, export_name::AbstractStrin
       return WebAssembly.instantiate(__bytes, {
         canvas2d: canvas2d_imports(__canvas),
         Math: { pow: Math.pow },
-      });
+        io: new Proxy({}, { get: function () { return function () {}; } }),
+      }, { builtins: ["js-string"] });
     }).then(function (mod) {
       __canvas.wasmmakie = mod.instance;
       mod.instance.exports["$(export_name)"]();

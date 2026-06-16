@@ -236,8 +236,10 @@ import PNGFiles
     @test strip(read(joinpath(rec, "missing_files.txt"), String)) == "only_ref.png"
     @test strip(read(joinpath(rec, "new_files.txt"), String)) == "only_rec.png"
 
-    # the pinned reference tarball is fetchable (HEAD only — no download)
-    code = strip(read(`curl -sIL -o /dev/null -w "%{http_code}" $(RefScorer.refimages_url())`, String))
+    # the pinned reference tarball is fetchable (HEAD only — no download).
+    # NUL is Windows' null device; curl -o /dev/null errors (write error 23) there.
+    null_sink = Sys.iswindows() ? "NUL" : "/dev/null"
+    code = strip(read(`curl -sIL -o $null_sink -w "%{http_code}" $(RefScorer.refimages_url())`, String))
     @test code == "200"
 end
 
@@ -471,11 +473,13 @@ end
     dir = mktempdir()
     wasm_path = joinpath(dir, "geom.wasm")
     write(wasm_path, bytes)
+    # pass the path as argv (not interpolated into the JS string literal): a
+    # Windows path's backslashes would otherwise be mangled as JS escapes.
     out = read(`node -e "
       const fs = require('fs');
-      WebAssembly.instantiate(fs.readFileSync('$wasm_path'), {Math:{pow:Math.pow}}).then(m => {
+      WebAssembly.instantiate(fs.readFileSync(process.argv[1]), {Math:{pow:Math.pow}}).then(m => {
         console.log(m.instance.exports.geom_kernel_c005(0.25, -0.5));
-      });"`, String)
+      });" $wasm_path`, String)
     @test parse(Float64, strip(out)) === native
 end
 
@@ -1162,7 +1166,9 @@ end
     norm(j) = mktempdir() do d                       # via a FILE: Linux caps a
         f = joinpath(d, "s.json")                    # single argv at 128KB and
         write(f, j)                                  # image/heatmap streams exceed it
-        strip(read(`node -e "console.log(JSON.stringify(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))))" $f`, String))
+        # normalize_stream.js re-stringifies AND expands coalesced
+        # img_buf_push_rgba_b64 runs to per-pixel ops (the wasm side records raw)
+        strip(read(`node $(joinpath(@__DIR__, "normalize_stream.js")) $f`, String))
     end
     @test norm(host_json) == norm(wasm_json)
 
@@ -1295,7 +1301,9 @@ end
     norm(j) = mktempdir() do d                       # via a FILE: Linux caps a
         f = joinpath(d, "s.json")                    # single argv at 128KB and
         write(f, j)                                  # image/heatmap streams exceed it
-        strip(read(`node -e "console.log(JSON.stringify(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))))" $f`, String))
+        # normalize_stream.js re-stringifies AND expands coalesced
+        # img_buf_push_rgba_b64 runs to per-pixel ops (the wasm side records raw)
+        strip(read(`node $(joinpath(@__DIR__, "normalize_stream.js")) $f`, String))
     end
     checker = joinpath(@__DIR__, "wasm_stream_check.js")
     dir = mktempdir()

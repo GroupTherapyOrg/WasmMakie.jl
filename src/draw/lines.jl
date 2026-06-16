@@ -29,8 +29,17 @@ even length. (Translated from CairoMakie `to_cairo_linestyle`.)
 WASM-DIVERGENCE: solid is the empty vector, not `nothing` (closed-world).
 """
 function linestyle_to_pattern(linestyle::Vector{Float64}, linewidth::Float64)
-    pattern = diff(linestyle) .* linewidth
-    isodd(length(pattern)) && push!(pattern, 0.0)
+    # explicit preallocation instead of diff/push! — the latter trip a
+    # WasmTarget codegen trap when this runs inside a compiled render! kernel
+    n = length(linestyle)
+    n <= 1 && return Float64[]
+    m = n - 1
+    npat = isodd(m) ? m + 1 : m
+    pattern = Vector{Float64}(undef, npat)
+    for i in 1:m
+        pattern[i] = (linestyle[i + 1] - linestyle[i]) * linewidth
+    end
+    isodd(m) && (pattern[npat] = 0.0)
     return pattern
 end
 

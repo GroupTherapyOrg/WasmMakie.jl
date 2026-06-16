@@ -93,8 +93,9 @@ function _wasm_page_html(wasm_b64, glue, export_name; width, height)
         await canvas2d_load_fonts($(WasmMakie.font_faces_json()));
         const bytes = Uint8Array.from(atob('$(wasm_b64)'), (ch) => ch.charCodeAt(0));
         const canvas = document.getElementById('c');
-        const imports = { canvas2d: canvas2d_imports(canvas), Math: { pow: Math.pow } };
-        const { instance } = await WebAssembly.instantiate(bytes, imports);
+        const imports = { canvas2d: canvas2d_imports(canvas), Math: { pow: Math.pow },
+                          io: new Proxy({}, { get: () => () => {} }) };
+        const { instance } = await WebAssembly.instantiate(bytes, imports, { builtins: ['js-string'] });
         window.__result = instance.exports.$(export_name)();
         window.__done = true;
       } catch (e) { window.__error = String(e); }
