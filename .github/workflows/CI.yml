@@ -28,13 +28,12 @@ jobs:
 
       # the test env's [sources] points at ../../WasmTarget.jl — a sibling
       # checkout of WasmTarget, exactly like local development. The Int128
-      # struct-field codegen WasmMakie's E-001 wasm-acid kernel relies on lives
-      # on wt-pluto-codegen-campaign and is not yet merged to WasmTarget main —
-      # pin to that branch until it lands on main.
+      # struct-field codegen WasmMakie's E-001 wasm-acid kernel relies on (plus
+      # the Pluto-islands campaign) has merged to WasmTarget main, so track main.
       - uses: actions/checkout@v4
         with:
           repository: GroupTherapyOrg/WasmTarget.jl
-          ref: wt-pluto-codegen-campaign
+          ref: main
           path: WasmTarget.jl
 
       - uses: julia-actions/setup-julia@v2
