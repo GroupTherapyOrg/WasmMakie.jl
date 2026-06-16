@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/GroupTherapyOrg/WasmMakie.jl/compare/v0.1.1...v0.1.2) (2026-06-16)
+
+
+### Bug Fixes
+
+* make dashed lines + browser embed work on current WasmTarget ([0a45f08](https://github.com/GroupTherapyOrg/WasmMakie.jl/commit/0a45f08d444cb8ead57753599a63ab8f26488d1d))
+
 ## [0.1.1](https://github.com/GroupTherapyOrg/WasmMakie.jl/compare/v0.1.0...v0.1.1) (2026-06-15)
 
 
